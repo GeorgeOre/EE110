@@ -80,6 +80,7 @@ IO_IN_CTRL  .EQU    00100000000000000100000000000000b  ;input
 ;                                0x3     Open Source Mode
 ;    16-31   Reserved            00
 AUXIO8ip2IN .EQU    0x00000010  ;AUXIO[8i+2] input and the rest output
+AUXIO8ip4IN .EQU    0x00000100  ;AUXIO[8i+4] input and the rest output
 
 ;    Bits of Digital Input Buffer Enable Reg  GPIODIE
 ;    Bits    Name                Code    Description
@@ -202,6 +203,7 @@ IO2PSEL_EN .EQU    0x00000002  ;Enable AUXIO[8i+2] to connect to IO2PSEL only
 
 ;Base Addresses
 IOC         .EQU    0x40081000  ;IO Controller
+AUX_AIODIO2 .EQU    0x400CE000  ;AUX Domain Analog Digital I/O 2
 AUX_AIODIO3 .EQU    0x400CF000  ;AUX Domain Analog Digital I/O 3
 
 ;IO Configuration Register Offsets

@@ -18,7 +18,7 @@ INPUT_MASK      .EQU    0x000000F0  ;input IO bits mask
 OUTPUT_MASK     .EQU    0x0000000F  ;output IO bits mask
 
 ;Output Constants
-PWM_PIN         .EQU    0x00200000  ;Used to toggle pin 21 with PWM
+PWM_PIN         .EQU    0x40000000  ;Used to toggle pin 30 with PWM
 
 ;;;;;;Memory Register Values;;;;;;
 
@@ -31,6 +31,10 @@ OUTPUT_ENABLE_4_7   .EQU    0x000000F0  ;Enable bits 4-7
 OUTPUT_ENABLE_8_17  .EQU    0x0003FF00  ;Enable bits 8-17
 OUTPUT_ENABLE_18    .EQU    0x00040000  ;Enable bit 18
 OUTPUT_ENABLE_21    .EQU    0x00200000  ;Enable bit 21
+OUTPUT_ENABLE_30    .EQU    0x40000000  ;Enable bit 30
+LCD_OUTPUT_EN       .EQU    0x001CFF00  ;Enable bits 8-15 and 18-20
+LCD_SRVO_OUTPUT_EN  .EQU    0x401CFF00  ;Enable bits 8-15, 18-20 (LCD)
+                                        ;and 30 (Servo)
 
 ;;;;;;Memory Register Addresses;;;;;;
 

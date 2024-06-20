@@ -244,6 +244,8 @@ EN_INT_T1B          .equ    0x00040000   ;Enable timer 0A interrupt
 ;Base Addresses
 GPT0    .EQU    0x40010000  ;General Purpose Timer 0
 GPT1    .EQU    0x40011000  ;General Purpose Timer 1
+GPT2    .EQU    0x40012000  ;General Purpose Timer 2
+GPT3    .EQU    0x40013000  ;General Purpose Timer 3
 SCS     .equ    0xE000E000  ;System Control Space
 
 ;GPT Data and Control Register Offsets

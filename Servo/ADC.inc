@@ -95,7 +95,8 @@ FLUSHADC_MANUAL    .EQU    0x3F03  ;Must set enable or disable after
 ;                                        Remains sticky until you flush
 ;                                        Blocks FIFO from more entries
 ;    5-31    Reserved            0
-ADCISEMPTY  .EQU        0x0 ;Status when ADC is empty
+ADCISEMPTY          .EQU        0x1 ;Status when ADC is empty
+ADCFIFOREADYMASK    .EQU        0x1 ;Mask for the ADC FIFO ready bit (1 means empty)
 
 ;    Bits of ADC FIFO Register ADCFIFO
 ;    Bits    Name                Code    Description
@@ -132,7 +133,8 @@ NO_SOURCES  .EQU       0x0  ;UNSURE: Blocks all voltage sources from ADC/COMPB b
 ;    Bits    Name                Code    Description
 ;    0-7     ADCCOMPB_IN Gate    0xXX    Controls gate
 ;                                        AUXIO19-26 to the ADC/COMPB bus
-MUX_AUXIO26  .EQU      0x80  ;UNSURE: Connects AUXIO26 to the ADC/COMPB bus
+MUX_AUXIO20  .EQU      0x40  ;UNSURE: Connects AUXIO20 to the ADC/COMPB bus
+MUX_AUXIO26  .EQU      0x01  ;UNSURE: Connects AUXIO26 to the ADC/COMPB bus
 
 ;    Bits of ADC Block Control Register ADC0
 ;    Bits    Name                Code    Description
@@ -171,8 +173,11 @@ MUX_AUXIO26  .EQU      0x80  ;UNSURE: Connects AUXIO26 to the ADC/COMPB bus
 ;trigger signal. Sampling restarts when the conversion has finished.
 ;Asynchronous mode is useful when it is important to avoid jitter in
 ;the sampling instant of an externally driven signal
-ENADC_SYNC_FASTEST  .EQU    0x01    ;Enables ADC in synchronous mode with UNSURE: 333ns sample time
-ENADC_SYNC_2p7us    .EQU    0x01    ;Enables ADC in synchronous mode with 2.7us sample time
+ADC_RESET           .EQU    0x00    ;Resets that foo
+ENADC_SYNC_FASTEST  .EQU    0x03    ;Enables ADC in synchronous mode with UNSURE: 333ns sample time
+ENADC_SYNC_2p7us    .EQU    0x03    ;Enables ADC in synchronous mode with 2.7us sample time
+
+ENADC_SYNC_341us    .EQU    0x53    ;Enables ADC in synchronous mode with 341us sample time
 
 ;    Bits of ADC Comparator/Input Sample and Scaling Control Register ADC1
 ;    Bits    Name                Code    Description
@@ -190,6 +195,7 @@ ADC_PRESCALE  .EQU          0x0  ;UNSURE: Keep the 1408/4095 (.3438) scaling
 ;    5       IOMUX               ?
 ;    6       Ref Idle Enable     0/1     Enables ref in idle state
 ;    7       Reserved            0
+ADC_REF_EN_VCC_IDLE   .EQU    0x49    ;Enable ADC reference 4.3 V even in idle
 ADC_REF_EN_4p3_IDLE   .EQU    0x41    ;Enable ADC reference 4.3 V even in idle
 ADC_REF_4p3   .EQU    0x01    ;reference 4.3 V
 

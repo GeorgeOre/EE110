@@ -88,6 +88,23 @@
 
 	.include "macros.inc"		;contains all macros
 
+;Reference LCD handler functions
+    .ref    Display          ;   Display a string to the LCD
+    .ref    DisplayChar      ;   Display a char to the LCD
+    .ref    Wait_1ms         ;   Wait 1 ms
+    .ref    LowestLevelWrite ;   Handles an LCD write cycle
+    .ref    LowestLevelRead  ;   Handles an LCD read cycle
+    .ref    WaitLCDBusy      ;   Waits until the LCD is not busy
+    .ref	Int2Ascii		 ; 	 Converts an integer to ascii
+
+;Reference LCD functions
+    .ref    Display     ;   Display a string to the LCD
+    .ref    DisplayChar ;   Display a char to the LCD
+
+;Reference LCD variables
+    .global cRow
+	.global cCol
+
 	.text				;program start
 	.global ResetISR	;requred global var
 
@@ -131,13 +148,14 @@ InitVariables:
 	STR     R0, [R1]
 
 	MOVA    R1, pwm_stat		;Set PWM status READY
-	MOV32   R0, SET
+	MOV32   R0, READY
 	STR     R0, [R1]
 
 ;;;;;;Init Register Values;;;;;;
 ;InitRegisters:
 	MOV32	R1, GPIO		;Load base address
 	STREG   ALL_PINS, R1, DCLR31_0	;Clear all GPIO pins
+	;STREG   PWM_PIN, R1, DSET31_0	;Set the PWM pin
 
 ;;;;;;Init PWM;;;;;;
 	;GPT1 is our PWM timer
@@ -145,61 +163,84 @@ InitVariables:
 	STREG   GPT_CTL_EN_TA_PWM_STALL, R1, CTL ;Enable PWM timer A with debug stall
 
 ;;;;;;Init ADC;;;;;;
-;	BL	InitADC
+	BL	InitADC
+
+;;;;;; Init LCD ;;;;;;
+InitLCD:    ; The following is LCD function set/startup
+    MOV32   R0, WAIT30             ; Wait 30 ms (15 ms min)
+    BL      Wait_1ms
+    BL      WaitLCDBusy
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    BL      LowestLevelWrite
+
+    MOV32   R0, WAIT8              ; Wait 8 ms (4.1 ms min)
+    BL      Wait_1ms
+
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    BL      LowestLevelWrite
+
+    MOV32   R0, WAIT1              ; Wait 1 ms (100 us min)
+    BL      Wait_1ms
+
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    BL      LowestLevelWrite
+
+; From here we need to wait until the busy flag is reset before executing the next command
+    BL      WaitLCDBusy
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    BL      LowestLevelWrite
+
+    BL      WaitLCDBusy
+    MOV32   R0, LCD_OFF            ; Write display off command
+    MOV32   R1, LCD_OFF_RS
+    BL      LowestLevelWrite
+
+    BL      WaitLCDBusy
+    MOV32   R0, CLR_LCD            ; Write clear display command
+    MOV32   R1, CLR_LCD_RS
+    BL      LowestLevelWrite
+
+    BL      WaitLCDBusy
+    MOV32   R0, FWD_INC            ; Write entry mode set command
+    MOV32   R1, ENTRY_RS
+    BL      LowestLevelWrite
+
+    BL      WaitLCDBusy
+    MOV32   R0, CUR_BLINK          ; Write display on command
+    MOV32   R1, LCD_ON_RS
+    BL      LowestLevelWrite
 
 ;;;;;;Main Program;;;;;;
 Main:
 
-TestPWM:
-	ADR 	R4, PWMTable ;start at the beginning of table
-
-TestPWMLoop:
-	MOV32	R0, 300	;delay a bit
-	BL	Wait_1ms
-
-	LDRH	R0, [R4], #2 	;get the pwm argument from table
-	LDRH	R1, [R4], #2 	;get the pwm argument from table
-	BL 		SetPWM		;call the function
-
-CheckPWMDoneTest: 				;check if tests done
-	ADR 	R5, EndPWMTable	;check if at end of table
-
-	CMP 	R4, R5
-	BNE 	TestPWMLoop	;not done with tests, keep looping
-	;BEQ 	DoneTestServo 	;otherwise done testing the servo
-
-;Now go back
-	SUB		R4, #4
-
-TestPWMLoop2:
-	MOV32	R0, 300	;delay a bit
-	BL	Wait_1ms
-
-	LDRH	R0, [R4], #-2 	;get the pwm argument from table
-	LDRH	R1, [R4], #-2 	;get the pwm argument from table
-	BL 		SetPWM		;call the function
-
-CheckPWMDoneTest2: 				;check if tests done
-	ADR 	R5, PWMTable	;check if at end of table
-	ADD		R5, #4
-	CMP 	R4, R5
-	BNE 	TestPWMLoop2	;not done with tests, keep looping
-	;BEQ 	DoneTestServo 	;otherwise done testing the servo
-
-	B TestPWMLoop
-
-
 TestServo: ;do the servo function tests
-	ADR 	R4, TestServoTab ;start at the beginning of table
+	ADR 	R4, TestServoTable ;start at the beginning of table
 
 TestServoLoop:
 	LDRB	R0, [R4], #1 	;get the SetServo argument from table
 	BL 		SetServo		;call the function
 	LDRB 	R5, [R4], #1 	;get iterations from the table
 
+    ;BL 		DisplayServo 	;display GetServo results
+
 TestGetServoLoop: 			;loop testing GetServo function
 	BL 		GetServo 		;call GetServo
-;	BL 		DisplayServo 	;display GetServo results
+
+	PUSH {R0, R1}
+
+	BL      WaitLCDBusy
+    MOV32   R0, CLR_LCD            ; Write clear display command
+    MOV32   R1, CLR_LCD_RS
+    BL      LowestLevelWrite
+	BL      WaitLCDBusy
+
+	POP {R0, R1}
+
+	BL 		DisplayServo 	;display GetServo results
 	LDRH 	R0, [R4] 		;get the time delay from the table
 	BL 		Wait_1ms 		;delay amount specified
 	SUBS 	R5, #1 			;update loop counter
@@ -208,19 +249,36 @@ TestGetServoLoop: 			;loop testing GetServo function
 
 CheckDoneTest: 				;check if tests done
 	ADD		R4, #2			;get past delay entry in table
-	ADR 	R5, EndTestServoTab	;check if at end of table
+	ADR 	R5, EndTestServoTable	;check if at end of table
 	CMP 	R4, R5
 	BNE 	TestServoLoop	;not done with tests, keep looping
 	;BEQ 	DoneTestServo 	;otherwise done testing the servo
 
 DoneTestServo: ;done testing servo
 
-	B	Main
 	BL	ReleaseServo	;Put the servo in release mode
 
+;	MOV32	R1, GPIO		;Load base address
+;	STREG   PWM_PIN, R1, DCLR31_0	;Clear the PWM pin
+
 ReleaseLoop:
-;	BL	GetServo		;Get servo angle
-;	BL	DisplayServo	;Display servo angle
+	BL	GetServo		;Get servo angle
+
+	PUSH {R0, R1}
+
+	BL      WaitLCDBusy
+    MOV32   R0, CLR_LCD            ; Write clear display command
+    MOV32   R1, CLR_LCD_RS
+    BL      LowestLevelWrite
+	BL      WaitLCDBusy
+
+	POP {R0, R1}
+
+	BL	DisplayServo	;Display servo angle
+
+	MOV32 R0, WAIT1000
+	BL Wait_1ms
+
 	B	ReleaseLoop		;Loop forever
 
 ;*******************************************************************************
@@ -283,6 +341,8 @@ MinInputTest:
 	;BGE	KeepSettingServo	;If not, keep setting the angle
 
 ;KeepSettingServo:
+	CPSID	I	;Disable interrupts to avoid critical code
+
 	MOVA	R1, angle	;Save new input angle in the angle variable
 	STR		R0, [R1]
 
@@ -293,6 +353,8 @@ MinInputTest:
 	PUSH	{LR}
 	BL		SetPWM			;(ARGS: R0 = TAMATCHR, R1 = TAPMR)
 	POP		{LR}	;PWM should be updated/set
+
+	CPSIE	I	;Enable interrupts again
 
 ENDSetServo:
 	POP    	{R0, R1, R2}	;Pop registers
@@ -335,10 +397,13 @@ ENDSetServo:
 ReleaseServo:
 	PUSH    {R0, R1}	;Push registers
 
+	MOV32	R1, GPT1
 	STREG   GPT_CTL_TA_PWM_STALL, R1, CTL	;Disable PWM timer
 	;Alternateivly disable interrupts??
 
-	STREG	PWM_PIN, R1, DCLR31_0	;Clear the PWM pin
+	MOV32	R1, GPIO
+;	STREG	PWM_PIN, R1, DCLR31_0	;Clear the PWM pin
+	STREG	PWM_PIN, R1, DSET31_0	;Clear the PWM pin
 
 EndReleaseServo:
 	POP    	{R0, R1}	;Pop registers
@@ -387,12 +452,10 @@ GetServo:
 	BL		SampleADC
 	POP		{LR}
 
-	PUSH	{LR}
-	BL		GetADCFIFO
-	POP		{LR}
+;	CPSID	I	;Disable interrupts to avoid critical code
 
 	PUSH	{LR}
-	BL		FlushADCFIFO
+	BL		GetADCFIFO
 	POP		{LR}
 
 	PUSH	{LR}
@@ -401,6 +464,12 @@ GetServo:
 
 	MOVA	R1, angle	;Save new angle in angle variable
 	STR		R0, [R1]
+
+;	CPSIE	I	;Enable interrupts again
+
+	PUSH	{LR}
+	BL		FlushADCFIFO
+	POP		{LR}
 
 EndGetServo:
 	POP    	{R0, R1, R2, R3, R4}	;Pop registers
@@ -507,11 +576,15 @@ SetPWM:
 
 	MOV32	R2, GPT1		;Load base address
 
+
+;	CPSID	I	;Disable interrupts to avoid critical code
+
+
 	PUSH	{R0}
 	STREG   GPT_CTL_TA_PWM_STALL, R2, CTL	;Disable timer
 	POP		{R0}
 
-	CPSID	I	;Disable interrupts to avoid critical code
+
 
 	MOV32	R3, TAPMR
 	STR   	R1, [R2, R3] 	;Set timer match preset
@@ -519,9 +592,10 @@ SetPWM:
 	MOV32	R3, TAMATCHR 	;Set timer match duration
 	STR   	R0, [R2, R3]
 
-	CPSIE	I	;Enable interrupts again
-
 	STREG   GPT_CTL_EN_TA_PWM_STALL, R2, CTL	;Enable timer
+
+;	CPSIE	I	;Enable interrupts again
+
 
 ENDSetPWM:
 	POP    	{R0, R1, R2, R3}	;Pop registers
@@ -610,16 +684,21 @@ ENDSampleADC:
 ;
 ;	return
 GetADCFIFO:
-	PUSH    {R0, R1, R2}	;Push registers
+	PUSH    {R1, R2}	;Push registers
 
-	MOV32	R1, AUX_DDI0_OSC	;Load AUX domain clock control base address
+;	MOV32	R1, AUX_DDI0_OSC	;Load AUX domain clock control base address
+	MOV32	R1, AUX_ANAIF	;Load analog interface base address
 
 ADCProcessingLoop:
-	MOV32	R2, ADCDATAREADYMASK	;Get ADC processing status
-	LDR     R0, [R1, #STAT0]		;First load general status register
+;	MOV32	R2, ADCDATAREADYMASK	;Get ADC processing status
+	MOV32	R2, ADCISEMPTY	;Get ADC processing status
+;	LDR     R0, [R1, #STAT0]		;First load general status register
+	LDR     R0, [R1, #ADCFIFOSTAT]		;First load general status register
 	ANDS	R0, R2					;Mask for only the relevant bit
-	BNE		ADCProcessingLoop		;Keep looping until ADC is ready
-	;BEQ	ADCReady
+	CMP		R0, R2
+	BNE		ADCReady
+	B		ADCProcessingLoop		;Keep looping until ADC is ready
+
 ;while you are at it STAT0 tells you if the RCOSC_HF is on which is your ADC source check it
 ADCReady:
 	MOV32	R1, AUX_ANAIF	;Load analog interface base address
@@ -629,7 +708,7 @@ ADCReady:
 	AND		R0, R2				;But only the relevant bits
 
 ENDGetADCFIFO:
-	POP    	{R0, R1, R2}	;Pop registers
+	POP    	{R1, R2}	;Pop registers
 	BX		LR			;Return
 
 ; FlushADCFIFO:
@@ -724,35 +803,26 @@ ENDFlushADCFIFO:
 ;	Add offset
 ;	return
 ErrorCorrection:
-	PUSH    {R0, R1}	;Push registers
+	PUSH    {R1, R2, R3}	;Push registers
 
-	MOVA 	R2, SampleTable ;start at the beginning of table
-;	ADR 	R2, CorrectionTable ;start at the beginning of table
+	ADR 	R2, SampleTable ;start at the beginning of table
+	MOV32	R3, ZERO_START	;load a counter variable to count search offset
 
 LookupTableLoop:
-	LDRSB	R1, [R2], #1 	;Get the first sample in lookup table
+	LDR		R1, [R2], #NEXT_WORD 	;Get the next sample in sample table
 
-TestSampleLoop: 			;Check if sample is found in lookup table
+TestSampleLoop: 			;Check if sample is less than the RAW ADC data in R0
 	CMP 	R1, R0 			;Compare sample with table data
-	BNE 	LookupTableLoop	;Loop until a match is found
-	;BEQ 	GetCorrectData 	;When a match is found, get the correct data
+	BGE 	GetCorrectData	;When threshold is supassed, get the correct data
+	ADD		R3, R3, #NEXT_WORD	;Add one byte of distance to the counter
+	B 	LookupTableLoop 	;Keep traversing the sample table until the threshold is surpassed
 
 GetCorrectData:
-	ADD		R2, #ErrorCorrectionTableOffset	;Modify the address to map to correction table
-	LDR		R0, [R2]
+	ADR 	R2, ErrorCorrectionTable ;Start at the beginning of error correction table
+	LDR		R0, [R2, R3]	;Load corrected angle
 
-;ENDErrorCorrection:
-
-
-;or
-
-	MOV32	R2, ADCSCALINGFACTOR
-	MUL		R0, R2
-	MOV32	R2, ADCOFFSET
-	ADD		R0, R2
-
-ENDErrorCorrection:
-	POP    	{R0, R1}	;Pop registers
+EndErrorCorrection:
+	POP    	{R1, R2, R3}	;Pop registers
 	BX		LR			;Return
 
 ; InitADC:
@@ -796,25 +866,29 @@ InitADC:
 	MOV32	R1, AUX_ADI4		;Load analog digital interface master base address
 
 ;	Do not allow VDDR or any other voltage source into the ADC channel
-;	STREG   NO_VDDR, R1, MUX0
-;	STREG   NO_SOURCES, R1, MUX2
+;	STREG   NO_VDDR, R1, MUX0	; DONT NEED
+;	STREG   NO_SOURCES, R1, MUX2	;DONTNEED
 
-;	Mux AUXIO26 (GPIO 23) into the ADC channel
-	STREG   MUX_AUXIO26, R1, MUX3
+;	Mux AUXIO20 (GPIO 29) into the ADC channel
+	STREG   MUX_AUXIO20, R1, MUX3	;FIX THIS
 
 ;	Enable ADC module in synchronous mode with 2.7us sampling rate
-	STREG   ENADC_SYNC_2p7us, R1, ADC0
+	STREG   ENADC_SYNC_341us, R1, ADC0 ;341microseconds
 
 ;	Keep the 1408/4095 (.3438) scaling
-;	STREG   ADC_PRESCALE, R1, ADC1
+;	STREG   ADC_PRESCALE, R1, ADC1	;DONT NEED
 
 ;	Enable ADC reference even in idle state
-	STREG   ADC_REF_EN_4p3_IDLE, R1, ADCREF0
+	STREG   ADC_REF_EN_4p3_IDLE, R1, ADCREF0	;YYOU NEED THIS
+
 
 ;	Keep nominal 1.43V scaled reference
-;	STREG   NOMINAL_ADCREF, R1, ADCREF1
+;	STREG   NOMINAL_ADCREF, R1, ADCREF1	;Dont need
 
 	MOV32	R1, AUX_ANAIF		;Load analog interface base address
+
+
+
 
 	NOP		;Two (24MHz or 48MHz???)clocks are needed before enabling or
 	NOP		;disabling the ADC control interface
@@ -865,13 +939,27 @@ ENDInitADC:
 DisplayServo:
 	PUSH    {R0, R1, R2, R3}	;Push registers
 
-	MOV32	R2, GPT0		;Load base address
+;    CPSID   I   ;Disable interrupts to avoid critical code
 
-	MOV32	R3, TAMATCHR	;Load match reg offset address
-	STR   	R0, [R2, R3] 	;Set timer match duration
+	MOVA	R1, angle	;Fetch angle address
+	LDR	R0, [R1]	;Fetch the angle
 
-	MOV32	R3, TAPMR		;Load prescale reg offset address
-	STR   	R1, [R2, R3]	;Set match prescaler
+; Prep the ascii buffer
+	MOVA	R1, charbuffer
+	PUSH    {LR}
+	BL Int2Ascii	; Returns
+	POP     {LR}
+
+;    CPSIE   I   ;Enable interrupts again
+
+; Display the value
+	MOV32	R0, DISPLAY_LCD_ROW	; Set the default display position
+	MOV32	R1, DISPLAY_LCD_COL
+    MOVA    R2, charbuffer     	; Start at the beginning of word data table
+
+	PUSH    {LR}
+    BL      Display                 ; Call the function (should increment R2 address)
+	POP     {LR}
 
 ENDDisplayServo:
 	POP    	{R0, R1, R2, R3}	;Pop registers
@@ -882,7 +970,7 @@ ENDDisplayServo:
 ; Description:	This procedure is called through the GPT1 vector table
 ;		  		interupt. It happens when the PWM signal changes state.
 ;
-; Operation:	Toggles GPIO 21 output when PWM changes state.
+; Operation:	Toggles GPIO 30 output when PWM changes state.
 ; Arguments:        None.
 ; Return Values:    None.
 ;
@@ -897,9 +985,9 @@ ENDDisplayServo:
 ; Global Variables: None.
 ;
 ; Input:            None.
-; Output:           GPIO 21 output state
+; Output:           GPIO 30 output state
 ;
-; Error Handling:   Assumes that GPIO 21 is already in the correct state
+; Error Handling:   Assumes that GPIO 30 is already in the correct state
 ;
 ; Registers Changed: R0, R1, R2, R3
 ; Stack Depth:      1 word
@@ -911,10 +999,11 @@ ENDDisplayServo:
 ;
 ; Pseudo Code
 ;
-;	ToggleGPIO(21)
+;	ToggleGPIO(30)
 ;	return
 GPT1EventHandler:
-	;PUSH    {R0, R1, R2}	;R0-R3 are autosaved
+;TODO: Double check that this is working good and if I should push and pop this or not
+;	PUSH    {R0, R1, R2}	;R0-R3 are autosaved
 
 	MOVA 	R0, pwm_stat	;Load staus address
 	LDR		R1, [R0]	;Fetch status
@@ -936,7 +1025,7 @@ EndGPT1EventHandler:
 	MOV32 	R1, GPT1				;Load base into R1
 	STREG   GPT_IRQ_CAE, R1, ICLR  	;Clear timer A capture event interrupt
 
-	;POP    {R0, R1, R2}			;R0-R3 are autorestored
+;	POP    {R0, R1, R2}			;R0-R3 are autorestored
 	BX      LR                      ;return from interrupt
 
 ; MoveVecTable:
@@ -1180,7 +1269,7 @@ InitClocks:
 	;Write to GPIOCLKGR to turn on the GPIO clock power
 	STREG   GPIO_CLOCK_ON, R1, GPIOCLKGR	;GPIO clock power on
 	;Write to GPTCLKGR to turn on the GPT clock power
-	STREG   GPT01_CLK_ON, R1, GPTCLKGR	;GPT0 and GPT1 clocks power on
+	STREG   GPT_CLKS_ON, R1, GPTCLKGR	;Turn all GPTs on
 	;Write to CLKLOADCTL to turn on GPIO clock
 	STREG   LOAD_CLOCKS, R1, CLKLOADCTL		;Load clock settings
 
@@ -1244,26 +1333,48 @@ ENDInitClocks:
 ;
 ;	Write to IOCFG0-3 to be row testing outputs
 ;	Load base address
-;	Set GPIO pin 21 as an output
-;	Set GPIO pin 23 as an AUXIO input for ADC
+;	Set GPIO pin 29 as an AUXIO input for ADC
+;	Set GPIO pin 30 as an output
 ;
 ;	Write to DOE31_0 to enable the LED outputs
 ;	Load base address
 ;	Enable pins 0-3 as outputs
 ;	BX		LR			;Return
 InitGPIO:
-	;Write to IOCFG21 to be a PWM data output
-	MOV32	R1, IOC						;Load base address
-	STREG   IO_OUT_CTRL, R1, IOCFG21	;Set GPIO pin 21 as an output
+    ; Write to IOCFG8-15 to be databus outputs
+    MOV32   R1, IOC                     ; Load base address
+    STREG   IO_OUT_CTRL, R1, IOCFG8     ; Set GPIO pin 8 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG9     ; Set GPIO pin 9 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG10    ; Set GPIO pin 10 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG11    ; Set GPIO pin 11 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG12    ; Set GPIO pin 12 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG13    ; Set GPIO pin 13 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG14    ; Set GPIO pin 14 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG15    ; Set GPIO pin 15 as an output
 
-	MOV32	R1, GPIO					;Load base address
-	STREG   OUTPUT_ENABLE_21, R1, DOE31_0	;Enable pin 21 as output
+; *** AVOID GPIO 16 and 17 because they are used for debugging
 
-	;Write to AUXIO26 to be an ADC input
-	MOV32	R1, AUX_AIODIO3				;Load base address
-	STREG   AUXIO8ip2IN, R1, IOMODE		;Enable AUXIO[8i+2] as input
+    ; Write to IOCFG18 to be chip enable (E) output
+    STREG   IO_OUT_CTRL, R1, IOCFG18    ; Set GPIO pin 18 as an output
+
+    ; Write to IOCFG19 to be register select (RW) output
+    STREG   IO_OUT_CTRL, R1, IOCFG19    ; Set GPIO pin 19 as an output
+
+    ; Write to IOCFG20 to be register select (RS) output
+    STREG   IO_OUT_CTRL, R1, IOCFG20    ; Set GPIO pin 20 as an output
+
+	;Write to IOCFG30 to be a PWM data output
+	STREG   IO_OUT_CTRL, R1, IOCFG30	;Set GPIO pin 30 as an output
+
+    ; Write to DOE31_0 to enable pins 8-15 and 18-19 as outputs
+	MOV32	R1, GPIO						;Load base address
+	STREG   LCD_SRVO_OUTPUT_EN, R1, DOE31_0	;Enable LCD and servo driving pins as output
+
+	;Write to AUXIO20 to be an ADC input
+	MOV32	R1, AUX_AIODIO2				;Load base address
+	STREG   AUXIO8ip4IN, R1, IOMODE		;Enable AUXIO[8i+4] as input (20)
 	STREG   NODIB, R1, GPIODIE			;Disable digital input buffers
-	;AUX pin 26 maps to GPIO pin 23
+	;AUX pin 20 maps to GPIO pin 29
 
 	BX		LR							;Return
 
@@ -1338,80 +1449,17 @@ InitGPTs:
 	STREG   IMR_TA_CAPEV, R1, IMR		;Enable capture mode event interrupt
 	STREG   GPT_PWM_TO, R1, ANDCCP ;Handle PWM assertion bug
 
+    ; GPT2 will be our 1us tCycle timer (for write operation timing)
+    MOV32   R1, GPT2                    ; Load base address
+    STREG   CFG_16x2, R1, CFG           ; 32 bit timer
+    STREG   TAMR_D_ONE_SHOT, R1, TAMR   ; Enable timer one-shot countdown mode
+    STREG   TIMER32_1us, R1, TAILR      ; Set timer duration to 1us
+    STREG   IMR_TA_TO, R1, IMR          ; Enable timeout interrupt
+
 	MOV32	R1, SCS						;Load base address
 	STREG   EN_INT_T1A, R1, NVIC_ISER0	;Interrupt enable
 
 	BX	LR								;Return
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Wait_1ms:
-;
-; Description:	Waits in 1ms intervals. Takes how many ms as a parameter
-;
-; Operation:    Loops the 1ms timer as many times as in the parameter
-;
-; Arguments:         R0 - Amount of ms to wait
-; Return Values:     None.
-;
-; Local Variables:   None.
-; Shared Variables:  None.
-; Global Variables:  None.
-;
-; Input:             None
-; Output:            None
-;
-; Error Handling:    None.
-;
-; Registers Changed: R0, R1, R2, R3, R4
-; Stack Depth:       1 word
-;
-; Algorithms:        None.
-; Data Structures:   None.
-;
-; Revision History:  12/7/24	George Ore	 created
-;					 12/8/24	George Ore	 formated, moved to HW5
-;					 01/2/24	George Ore	 made interrupt driven to fix
-;											 skipping error and moved to HW4
-;
-; Pseudo Code
-;
-;	while(counter!=0)
-;		reset 1msTimer
-;		while(1msTimerTimeoutInterrupt!=Set)
-;			NOP
-;		counter--
-;	return
-Wait_1ms:
-	PUSH    {R0, R1, R2, R3, R4}	;Push registers
-
-	MOV		R1, R0		;Relocate amount of ms into R1
-	MOV32	R2, GPT0	;Load GPT0 base address
-	MOV32	R3, COUNT_DONE	;Load ms count done condition
-	MOV32	R4, IRQ_TATO	;Load NOT1ms timer doneNOT timeout interrupt condition
-
-W_1ms_Cntr_Loop:
-	CMP		R1, R3			;Check if the ms counter is done
-	BEQ		End_1ms_Wait	;If it is, end wait
-	;BNE	Reset_1ms_Timer	;if not reset the 1ms timer
-
-Reset_1ms_Timer:
-	STREG   CTL_TA_STALL, R2, CTL	;Enable timer with debug stall
-
-W_1ms_Timr_Loop:
-	LDR		R0, [R2, #MIS]	;Get the masked interrupt status
-;	LDR		R0, [R2, #TAR]	;Get the 1ms timer value
-	CMP		R0, R4			;Check if 1ms timer is done Check if timeout interrupt has happened
-	BNE		W_1ms_Timr_Loop	;If 1ms hasn't passed, wait
-	;BEQ	DecCounter		;if 1ms passed, decrement the cntr
-
-DecCounter:
-	STREG   IRQ_TATO, R2, ICLR  	;Clear timer A timeout interrupt
-	SUB		R1, #ONE	;Decrement the counter and go back to
-	B		W_1ms_Cntr_Loop	;counter value check
-
-End_1ms_Wait:
-	POP    	{R0, R1, R2, R3, R4}	;Pop registers
-	BX		LR			;Return
 
 ;;;;;;Calculation Tables;;;;;;
 
@@ -1458,104 +1506,122 @@ EndPWMTable:
 
 	.align 4
 SampleTable:
-	.word		0x0000EA80,0x0000E975,0x0000E86A,0x0000E760,0x0000E655
-	.word		0x0000E54A,0x0000E440,0x0000E335,0x0000E22A,0x0000E120
-	.word		0x0000E015,0x0000DF0A,0x0000DE00,0x0000DCF5,0x0000DBEA
-	.word		0x0000DAE0,0x0000D9D5,0x0000D8CA,0x0000D7C0,0x0000D6B5
-	.word		0x0000D5AA,0x0000D4A0,0x0000D395,0x0000D28A,0x0000D180
-	.word		0x0000D075,0x0000CF6A,0x0000CE60,0x0000CD55,0x0000CC4A
-	.word		0x0000CB40,0x0000CA35,0x0000C92A,0x0000C820,0x0000C715
-	.word		0x0000C60A,0x0000C500,0x0000C3F5,0x0000C2EA,0x0000C1E0
-	.word		0x0000C0D5,0x0000BFCA,0x0000BEC0,0x0000BDB5,0x0000BCAA
-	.word		0x0000BBA0,0x0000BA95,0x0000B98A,0x0000B880,0x0000B775
-	.word		0x0000B66A,0x0000B560,0x0000B455,0x0000B34B,0x0000B240
-	.word		0x0000B135,0x0000B02B,0x0000AF20,0x0000AE15,0x0000AD0B
-	.word		0x0000AC00,0x0000AAF5,0x0000A9EB,0x0000A8E0,0x0000A7D5
-	.word		0x0000A6CB,0x0000A5C0,0x0000A4B5,0x0000A3AB,0x0000A2A0
-	.word		0x0000A195,0x0000A08B,0x00009F80,0x00009E75,0x00009D6B
-	.word		0x00009C60,0x00009B55,0x00009A4B,0x00009940,0x00009835
-	.word		0x0000972B,0x00009620,0x00009515,0x0000940B,0x00009300
-	.word		0x000091F5,0x000090EB,0x00008FE0,0x00008ED5,0x00008DCB
-	.word		0x00008CC0,0x00008BB5,0x00008AAB,0x000089A0,0x00008895
-	.word		0x0000878B,0x00008680,0x00008575,0x0000846B,0x00008360
-	.word		0x00008255,0x0000814B,0x00008040,0x00007F36,0x00007E2B
-	.word		0x00007D20,0x00007C16,0x00007B0B,0x00007A00,0x000078F6
-	.word		0x000077EB,0x000076E0,0x000075D6,0x000074CB,0x000073C0
-	.word		0x000072B6,0x000071AB,0x000070A0,0x00006F96,0x00006E8B
-	.word		0x00006D80,0x00006C76,0x00006B6B,0x00006A60,0x00006956
-	.word		0x0000684B,0x00006740,0x00006636,0x0000652B,0x00006420
-	.word		0x00006316,0x0000620B,0x00006100,0x00005FF6,0x00005EEB
-	.word		0x00005DE0,0x00005CD6,0x00005BCB,0x00005AC0,0x000059B6
-	.word		0x000058AB,0x000057A0,0x00005696,0x0000558B,0x00005480
-	.word		0x00005376,0x0000526B,0x00005160,0x00005056,0x00004F4B
-	.word		0x00004E40,0x00004D36,0x00004C2B,0x00004B21,0x00004A16
-	.word		0x0000490B,0x00004801,0x000046F6,0x000045EB,0x000044E1
-	.word		0x000043D6,0x000042CB,0x000041C1,0x000040B6,0x00003FAB
-	.word		0x00003EA1,0x00003D96,0x00003C8B,0x00003B81,0x00003A76
-	.word		0x0000396B,0x00003861,0x00003756,0x0000364B,0x00003541
-	.word		0x00003436,0x0000332B,0x00003221,0x00003116,0x0000300B
-	.word		0x00002F01
+	.word		0x000000FC, 0x00000105, 0x0000010F, 0x00000119, 0x00000122
+	.word		0x0000012C, 0x00000136, 0x0000013F, 0x00000149, 0x00000153
+	.word		0x0000015C, 0x00000166, 0x00000170, 0x0000017A, 0x00000183
+	.word		0x0000018D, 0x00000197, 0x000001A0, 0x000001AA, 0x000001B4
+	.word		0x000001BD, 0x000001C7, 0x000001D1, 0x000001DA, 0x000001E4
+	.word		0x000001EE, 0x000001F8, 0x00000201, 0x0000020B, 0x00000215
+	.word		0x0000021E, 0x00000228, 0x00000232, 0x0000023B, 0x00000245
+	.word		0x0000024F, 0x00000259, 0x00000262, 0x0000026C, 0x00000276
+	.word		0x0000027F, 0x00000289, 0x00000293, 0x0000029C, 0x000002A6
+	.word		0x000002B0, 0x000002B9, 0x000002C3, 0x000002CD, 0x000002D7
+	.word		0x000002E0, 0x000002EA, 0x000002F4, 0x000002FD, 0x00000307
+	.word		0x00000311, 0x0000031A, 0x00000324, 0x0000032E, 0x00000337
+	.word		0x00000341, 0x0000034B, 0x00000355, 0x0000035E, 0x00000368
+	.word		0x00000372, 0x0000037B, 0x00000385, 0x0000038F, 0x00000398
+	.word		0x000003A2, 0x000003AC, 0x000003B6, 0x000003BF, 0x000003C9
+	.word		0x000003D3, 0x000003DC, 0x000003E6, 0x000003F0, 0x000003F9
+	.word		0x00000403, 0x0000040D, 0x00000416, 0x00000420, 0x0000042A
+	.word		0x00000434, 0x0000043D, 0x00000447, 0x00000451, 0x0000045A
+	.word		0x00000464, 0x0000046E, 0x00000477, 0x00000481, 0x0000048B
+	.word		0x00000494, 0x0000049E, 0x000004A8, 0x000004B2, 0x000004BB
+	.word		0x000004C5, 0x000004CF, 0x000004D8, 0x000004E2, 0x000004EC
+	.word		0x000004F5, 0x000004FF, 0x00000509, 0x00000513, 0x0000051C
+	.word		0x00000526, 0x00000530, 0x00000539, 0x00000543, 0x0000054D
+	.word		0x00000556, 0x00000560, 0x0000056A, 0x00000573, 0x0000057D
+	.word		0x00000587, 0x00000591, 0x0000059A, 0x000005A4, 0x000005AE
+	.word		0x000005B7, 0x000005C1, 0x000005CB, 0x000005D4, 0x000005DE
+	.word		0x000005E8, 0x000005F1, 0x000005FB, 0x00000605, 0x0000060F
+	.word		0x00000618, 0x00000622, 0x0000062C, 0x00000635, 0x0000063F
+	.word		0x00000649, 0x00000652, 0x0000065C, 0x00000666, 0x00000670
+	.word		0x00000679, 0x00000683, 0x0000068D, 0x00000696, 0x000006A0
+	.word		0x000006AA, 0x000006B3, 0x000006BD, 0x000006C7, 0x000006D0
+	.word		0x000006DA, 0x000006E4, 0x000006EE, 0x000006F7, 0x00000701
+	.word		0x0000070B, 0x00000714, 0x0000071E, 0x00000728, 0x00000731
+	.word		0x0000073B, 0x00000745, 0x0000074E, 0x00000758, 0x00000762
+	.word		0x0000076C, 0x00000775, 0x0000077F, 0x00000789, 0x00000792
+	.word		0x0000079C, 0x000007A6, 0x000007AF, 0x000007B9, 0x000007C3
+	.word		0x000007CD, 0x00000FFF
 EndSampleTable:
 
 	.align 4
 ErrorCorrectionTable:
-	.word		0x0000EA80,0x0000E975,0x0000E86A,0x0000E760,0x0000E655
-	.word		0x0000E54A,0x0000E440,0x0000E335,0x0000E22A,0x0000E120
-	.word		0x0000E015,0x0000DF0A,0x0000DE00,0x0000DCF5,0x0000DBEA
-	.word		0x0000DAE0,0x0000D9D5,0x0000D8CA,0x0000D7C0,0x0000D6B5
-	.word		0x0000D5AA,0x0000D4A0,0x0000D395,0x0000D28A,0x0000D180
-	.word		0x0000D075,0x0000CF6A,0x0000CE60,0x0000CD55,0x0000CC4A
-	.word		0x0000CB40,0x0000CA35,0x0000C92A,0x0000C820,0x0000C715
-	.word		0x0000C60A,0x0000C500,0x0000C3F5,0x0000C2EA,0x0000C1E0
-	.word		0x0000C0D5,0x0000BFCA,0x0000BEC0,0x0000BDB5,0x0000BCAA
-	.word		0x0000BBA0,0x0000BA95,0x0000B98A,0x0000B880,0x0000B775
-	.word		0x0000B66A,0x0000B560,0x0000B455,0x0000B34B,0x0000B240
-	.word		0x0000B135,0x0000B02B,0x0000AF20,0x0000AE15,0x0000AD0B
-	.word		0x0000AC00,0x0000AAF5,0x0000A9EB,0x0000A8E0,0x0000A7D5
-	.word		0x0000A6CB,0x0000A5C0,0x0000A4B5,0x0000A3AB,0x0000A2A0
-	.word		0x0000A195,0x0000A08B,0x00009F80,0x00009E75,0x00009D6B
-	.word		0x00009C60,0x00009B55,0x00009A4B,0x00009940,0x00009835
-	.word		0x0000972B,0x00009620,0x00009515,0x0000940B,0x00009300
-	.word		0x000091F5,0x000090EB,0x00008FE0,0x00008ED5,0x00008DCB
-	.word		0x00008CC0,0x00008BB5,0x00008AAB,0x000089A0,0x00008895
-	.word		0x0000878B,0x00008680,0x00008575,0x0000846B,0x00008360
-	.word		0x00008255,0x0000814B,0x00008040,0x00007F36,0x00007E2B
-	.word		0x00007D20,0x00007C16,0x00007B0B,0x00007A00,0x000078F6
-	.word		0x000077EB,0x000076E0,0x000075D6,0x000074CB,0x000073C0
-	.word		0x000072B6,0x000071AB,0x000070A0,0x00006F96,0x00006E8B
-	.word		0x00006D80,0x00006C76,0x00006B6B,0x00006A60,0x00006956
-	.word		0x0000684B,0x00006740,0x00006636,0x0000652B,0x00006420
-	.word		0x00006316,0x0000620B,0x00006100,0x00005FF6,0x00005EEB
-	.word		0x00005DE0,0x00005CD6,0x00005BCB,0x00005AC0,0x000059B6
-	.word		0x000058AB,0x000057A0,0x00005696,0x0000558B,0x00005480
-	.word		0x00005376,0x0000526B,0x00005160,0x00005056,0x00004F4B
-	.word		0x00004E40,0x00004D36,0x00004C2B,0x00004B21,0x00004A16
-	.word		0x0000490B,0x00004801,0x000046F6,0x000045EB,0x000044E1
-	.word		0x000043D6,0x000042CB,0x000041C1,0x000040B6,0x00003FAB
-	.word		0x00003EA1,0x00003D96,0x00003C8B,0x00003B81,0x00003A76
-	.word		0x0000396B,0x00003861,0x00003756,0x0000364B,0x00003541
-	.word		0x00003436,0x0000332B,0x00003221,0x00003116,0x0000300B
-	.word		0x00002F01
+	.word		-90, -89, -88, -87, -86
+	.word		-85, -84, -83, -82, -81
+	.word		-80, -79, -78, -77, -76
+	.word		-75, -74, -73, -72, -71
+	.word		-70, -69, -68, -67, -66
+	.word		-65, -64, -63, -62, -61
+	.word		-60, -59, -58, -57, -56
+	.word		-55, -54, -53, -52, -51
+	.word		-50, -49, -48, -47, -46
+	.word		-45, -44, -43, -42, -41
+	.word		-40, -39, -38, -37, -36
+	.word		-35, -34, -33, -32, -31
+	.word		-30, -29, -28, -27, -26
+	.word		-25, -24, -23, -22, -21
+	.word		-20, -19, -18, -17, -16
+	.word		-15, -14, -13, -12, -11
+	.word		-10, -9, -8, -7, -6
+	.word		-5, -4, -3, -2, -1
+	.word		0, 1, 2, 3, 4
+	.word		5, 6, 7, 8, 9
+	.word		10, 11, 12, 13, 14
+	.word		15, 16, 17, 18, 19
+	.word		20, 21, 22, 23, 24
+	.word		25, 26, 27, 28, 29
+	.word		30, 31, 32, 33, 34
+	.word		35, 36, 37, 38, 39
+	.word		40, 41, 42, 43, 44
+	.word		45, 46, 47, 48, 49
+	.word		50, 51, 52, 53, 54
+	.word		55, 56, 57, 58, 59
+	.word		60, 61, 62, 63, 64
+	.word		65, 66, 67, 68, 69
+	.word		70, 71, 72, 73, 74
+	.word		75, 76, 77, 78, 79
+	.word		80, 81, 82, 83, 84
+	.word		85, 86, 87, 88, 89
+	.word		90, 90
 EndErrorCorrectionTable:
+
 
 
 ;;;;;;Testing Tables;;;;;;
 
-TestServoTab: 	;Argument 		Read Iters
+TestServoTable: ;Argument 		Read Iters
 				;Delay (ms)
-	.byte 		  -60,			1
+	.byte 		-90,				3
 	.half 		500
-	.byte 		-30, 			1
+	.byte 		-90, 			3
 	.half 		500
-	.byte 		 90, 			1
+	.byte 		-80, 			3
 	.half 		500
-	.byte 		 30, 			1
+	.byte 		70, 			3
 	.half 		500
-	.byte 		 45, 			1
+	.byte 		50, 			3
+	.half 		500
+	.byte 		45, 			3
+	.half 		500
+	.byte 		30, 			3
+	.half 		500
+	.byte 		10, 			3
+	.half 		500
+	.byte 		-10, 			3
+	.half 		500
+	.byte 		-30, 			3
+	.half 		500
+	.byte 		-45, 			3
+	.half 		500
+	.byte 		-60, 			3
+	.half 		500
+	.byte 		-90, 			3
+	.half 		500
+	.byte 		-90, 			3
 	.half 		500
 
-
-EndTestServoTab:
+EndTestServoTable:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;																			   ;
@@ -1564,12 +1630,26 @@ EndTestServoTab:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	.data
+	.global charbuffer
 
 ;;;;;;Variable Declaration;;;;;;
 	.align 4
 angle:		.space 4	;Signed value representing position
 						;in degrees
+	.align 4
 pwm_stat:	.space 4	;PWM status variable
+
+; Vars for Int2Ascii
+	.align 4
+charbuffer: .space 12       ; Buffer to store ASCII characters (including negative sign and null terminator)
+
+; LCD Vars
+    .align 4
+cRow:   .space 1    ; cRow holds the index of the cursor
+
+    .align 4
+cCol:   .space 1    ; cCol holds the index of the column
+
 
 ;;;;;;Stack Declaration;;;;;;
 	.align  8			;the stack (must be double-word aligned)
