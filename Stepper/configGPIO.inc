@@ -80,6 +80,7 @@ IO_IN_CTRL  .EQU    00100000000000000100000000000000b  ;input
 ;                                0x3     Open Source Mode
 ;    16-31   Reserved            00
 AUXIO8ip2IN .EQU    0x00000008  ;AUXIO[8i+2] input and the rest output
+AUXIO8ip7IN .EQU    0x00001000  ;AUXIO[8i+2] input and the rest output
 
 ;    Bits of Digital Input Buffer Enable Reg  GPIODIE
 ;    Bits    Name                Code    Description

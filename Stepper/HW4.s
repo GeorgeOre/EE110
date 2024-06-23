@@ -28,6 +28,15 @@
 	.ref	dir
 	.ref	pos
 	.ref	curStep
+
+	.ref	PWM20kHzSinTable
+	.ref	PWM20kHzCosTable
+
+	.ref 	SetPWM
+
+	.ref 	UpdateDirection
+	.ref 	UpdateSteps
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;								Table of Contents
 ;		Function Name	|	Purpose
@@ -111,6 +120,23 @@
 ;
 ;	enableinterrupts(ok stepping again)
 ;	return
+;
+;SetAngle(angle)	 rotate the stepper motor to absolute angle angle
+;	- Input must be [0 - 359] integer
+;		- Test to see if the input is valid
+;			- Return if not
+;	- Calculate where and how much to step towards
+;		- Calculate direction
+;			- See which direction gets you there quicker
+;				- Fetch pos and subtract input angle
+;				- If it is negative, go set dir CCW
+;					- Else set it CW
+;		- Calculate steps
+;			- You already subtracted the two positions
+;				- If it was negative, hit that yummy little 2s compliment
+;			- Set that as the new amount of steps to take
+;	- THIS TOUCHES "dir", "pos", AND "steps"
+;		- IMPORTANT FOR CRITICAL CODE
 SetAngle:
 	PUSH    {R0, R1, R2}	;Push registers
 
@@ -123,117 +149,31 @@ SetAngle:
 
 	MOV32	R1, INVALIDINPUT	;Test if input is invalid
 	CMP		R0, R1
-	BEQ		ENDSetAngle	;If it is, return and dont set angle
+	BEQ		EndSetAngle	;If it is, return and dont set angle
 	;BNE	SetAngleParams	;If not, start setting the input angle
 
 SetAngleParams:
 	MOVA	R2, pos	;Load motor position in R1****
-	CPSID	I	;Disable interrupts to avoid critical code
+;	CPSID	I	;Disable interrupts to avoid critical code
 	LDR		R1, [R2]
-	CPSIE	I	;Enable interrupts again
 
-	MOV		R2, R0	;Store a copy of input angle in R2
+;Calculate the difference in angle to get signed steps
+	SUB		R0, R0, R1
 
-	CMP		R0, R1	;Test if angle is >= to motor position
-	BGE		SetDegreeOffset2	;If angle >= pos, do calculation 2
-	;BLT	SetDegreeOffset1	;If not, do calculation 1
+	PUSH	{LR}
+	BL UpdateDirection
+	POP		{LR}
 
-SetDegreeOffset1:	;angle >= pos, so our degree offset from the
-	SUB		R0, R1	;target angle should be angle-pos stored in R0****
+	PUSH	{LR}
+	BL UpdateSteps
+	POP		{LR}
 
-	B		PotStepsCalc	;Proceed to the potential steps calculation
+;	CPSIE	I	;Enable interrupts again
 
-SetDegreeOffset2:	;angle < pos, so our degree offset from
-	MOV		R0, R1	;the target angle should be pos-angle
-	SUB		R0, R2	;stored in R0****
-
-;	B		PotStepCalc	;Proceed to the potential step calculation
-
-PotStepsCalc:
-	PUSH	{LR}	;Call Degree2Step
-	BL		Degree2Step	;(ARGS: R0 = degree)
-	POP		{LR}	;Loads R0 with the step equivalent of the degree
-;This means R0 now contains a potential number of steps to queue up - PSteps
-
-	CMP		R2, R1	;Test if angle is >= to motor position
-	BGE		StepDirTest2	;If angle >= pos, do steps/direction test 2
-	;BLT	StepDirTest1	;If not, do steps/direction test 1
-
-StepDirTest1:
-	MOV32	R1, HROT_STEPS
-	CMP		R0, R1	;Test if potential step value is greater than or equal to half a rotation of steps
-	BGE		SetCCWInvertSteps	;If not, set dir=ccw and steps=TotalSteps-PSteps
-	;BLT	SetCWPSteps	;If it is, set dir=cw and steps=PSteps
-
-SetCWPSteps:
-	MOVA	R1, steps
-	CPSID	I	;Disable interrupts to avoid critical code
-	STR		R0,	[R1]
-	CPSIE	I	;Enable interrupts again
-
-	MOV32	R0, CW
-	MOVA	R1, dir
-	CPSID	I	;Disable interrupts to avoid critical code
-	STR		R0,	[R1]
-	CPSIE	I	;Enable interrupts again
-
-	B		ENDSetAngle
-
-StepDirTest2:
-	MOV32	R1, HROT_STEPS
-	CMP		R0, R1	;Test if potential step value is greater than or equal to half a rotation of steps
-	BGE		SetCWInvertSteps	;If it is, set dir=cw and steps=PSteps
-	;BLT	SetCCWPSteps	;If not, set dir=ccw and steps=TotalSteps-PSteps
-
-SetCCWPSteps:
-	MOVA	R1, steps
-	CPSID	I	;Disable interrupts to avoid critical code
-	STR		R0,	[R1]
-	CPSIE	I	;Enable interrupts again
-
-	MOV32	R0, CCW
-	MOVA	R1, dir
-	CPSID	I	;Disable interrupts to avoid critical code
-	STR		R0,	[R1]
-	CPSIE	I	;Enable interrupts again
-
-	B		ENDSetAngle
-
-SetCWInvertSteps:
-	MOV32	R2, FROT_STEPS
-	SUB		R2, R0
-	MOVA	R1, steps
-	CPSID	I	;Disable interrupts to avoid critical code
-	STR		R2,	[R1]
-	CPSIE	I	;Enable interrupts again
-
-	MOV32	R0, CW
-	MOVA	R1, dir
-	CPSID	I	;Disable interrupts to avoid critical code
-	STR		R0,	[R1]
-	CPSIE	I	;Enable interrupts again
-
-	B		ENDSetAngle
-
-SetCCWInvertSteps:
-	MOV32	R2, FROT_STEPS
-	SUB		R2, R0
-	MOVA	R1, steps
-	CPSID	I	;Disable interrupts to avoid critical code
-	STR		R2,	[R1]
-	CPSIE	I	;Enable interrupts again
-
-	MOV32	R0, CCW
-	MOVA	R1, dir
-	CPSID	I	;Disable interrupts to avoid critical code
-	STR		R0,	[R1]
-	CPSIE	I	;Enable interrupts again
-
-	;B		ENDSetAngle
-
-ENDSetAngle:
+EndSetAngle:
 	POP    	{R0, R1, R2}	;Pop registers
 	BX		LR			;Return
+
 
 ; SetRelAngle:
 ;
@@ -314,6 +254,24 @@ ENDSetAngle:
 ;
 ;	enableinterrupts(ok stepping again)
 ;	return
+;
+;SetRelAngle(angle) rotate the stepper motor by relative angle angle
+;	- Input can be [-359 - 359]
+;		- Maybe later you can make it so that it can handle inputs up to 0xFFFFFFFF
+;		- Test to see if the input is valid
+;			- Return if not
+;	- Calculate where and how much to step towards
+;		- Calculate direction
+;			- Direction is kinda given to you already
+;				- If it is negative, go set dir CCW
+;					- Else set it CW
+;		- Calculate steps
+;			- You kinda already know the amount of steps that you need to queue
+;				- If it was negative, hit that yummy little 2s compliment
+;			- Set that as the new amount of steps to take
+;	- THIS TOUCHES "dir", AND "steps"
+;		- IMPORTANT FOR CRITICAL CODE
+;
 SetRelAngle:
 	PUSH    {R0, R1, R2, R3, R4}	;Push registers
 
@@ -326,136 +284,25 @@ SetRelAngle:
 
 	MOV32	R1, INVALIDINPUT	;Test if input is invalid
 	CMP		R0, R1
-	BEQ		ENDSetRelAngle	;If it is, return and dont set relative angle
+	BEQ		EndSetRelAngle	;If it is, return and dont set relative angle
 	;BNE	SetRelAngleParams	;If not, start setting relative angle
 
 SetRelAngleParams:
-	CPSID	I	;Disable interrupts to avoid critical code
+;	CPSID	I	;Disable interrupts to avoid critical code
 
-	MOV		R3, R0	;Store a copy of input relAngle in R1****
+	PUSH	{LR}
+	BL UpdateDirection
+	POP		{LR}
 
-	;Calculate abs(relAngle) = positive relative angle (PRelAngle) into R0
-	MOV		R2, R0		;Move relAngle in R2
-	MOVS 	R0, R2 		;R0 = R2, setting flags.
-	IT 		MI 			;IT instruction for the negative condition.
-	RSBMI 	R0, R2, #0 	;If negative, R0 = -R2.
+	PUSH	{LR}
+	BL UpdateSteps
+	POP		{LR}
 
-relStepsCalc:
-	PUSH	{LR}	;Call Degree2Step
-	BL		Degree2Step	;(ARGS: R0 = degree)
-	POP		{LR}	;Loads R0 with the step equivalent of the degree
-;This means the positive relAngle now contains the corresponding number of steps to queue up
-;													R0=relSteps****
+;	CPSIE	I	;Enable interrupts again
 
-	MOVA	R3, steps	;Load R2 with the number of motor queue steps*****
-	LDR		R2, [R3]
 
-relStepsTest:
-	CMP		R0, R2	;Test if relSteps >= motor queue steps
-	BGE		NoDirFlip_DirTest	;If relSteps >= steps, do a direction test with the condition that direction flipping is impossible,
-	;BLT	MaybeDirFlip_DirTest	;If not, do a direction test with the condition that direction flipping is possible
-
-NoDirFlip_DirTest:
-	MOVA	R4, dir	;Load R3 with step direction
-	LDR		R3, [R4]
-
-	MOV32	R4, CCW	;Test if direction is counterclockwise
-	CMP		R3, R4
-	BEQ		CCW_AngleTest1	;If dir == CCW, do an angle test with the condition that the direction is CCW
-	;BNE	CW_AngleTest1	;If not, do an angle test with the condition that the direction is CW
-
-CW_AngleTest1:
-;Remember that R1 has a copy of relAngle
-	MOV32	R3, ZERO_START	;Test if relAngle is zero or positive
-	CMP		R1, R3
-	BGE		AddRel	;If relAngle >= 0, add relative steps
-	;BLT	SubRel	;If not, subtract relative steps
-
-SubRel:
-	SUB		R2, R0		;Subtract relative steps from steps and save
-	MOVA	R3, steps
-	STR		R2, [R3]
-
-	B		ENDSetRelAngle	;End setting relative angle
-
-CCW_AngleTest1:
-;Remember that R1 has a copy of relAngle
-	MOV32	R3, ZERO_START	;Test if relAngle is zero or positive
-	CMP		R1, R3
-	BGE		SubRel	;If relAngle >= 0, subtract relative steps
-	;BLT	AddRel	;If not, add relative steps
-
-AddRel:
-	ADD		R2, R0		;Add relative steps from steps and save
-	MOVA	R3, steps
-	STR		R2, [R3]
-
-	B		ENDSetRelAngle	;End setting relative angle
-
-MaybeDirFlip_DirTest:
-	MOVA	R4, dir	;Load R3 with step direction
-	LDR		R3, [R4]
-
-	MOV32	R4, CW	;Test if direction is counterclockwise
-	CMP		R3, R4
-	BEQ		CW_AngleTest2	;If dir == CW, do an angle test with the condition that the direction is CW
-	;BNE	CCW_AngleTest2	;If not, do an angle test with the condition that the direction is CCW
-
-CCW_AngleTest2:
-;Remember that R1 has a copy of relAngle
-	MOV32	R4, ZERO_START	;Test if relAngle is negative
-	CMP		R1, R4
-	BLT		AddRel		;If relAngle < 0, add relative steps
-	;BGE	SetCW_RSmS	;If not, change dir to CW and subtract steps from relative steps
-
-SetCW_RSmS:
-	MOV32	R4, CW	;Set dir to CW
-	MOVA	R3, dir
-	STR		R4, [R3]
-
-;Remember R0 has relSteps and R2 has value of steps
-	SUB		R0, R2	;Calculate relSteps-steps
-	MOVA	R3, steps	;Set steps to relSteps-steps and save
-	STR		R0, [R3]
-
-	B		ENDSetRelAngle	;End setting relative angle
-
-CW_AngleTest2:
-;Remember that R1 has a copy of relAngle
-	MOV32	R3, ZERO_START	;Test if relAngle is zero or positive
-	CMP		R1, R3
-	BGE		AddRel	;If relAngle >= 0, add relative steps
-	;BLT	RSmSTest	;If not, test relSteps-steps
-
-RSmSTest:
-;Remember R2 has value of steps
-	SUB		R0, R2	;Calculate relSteps-steps
-	MOV32	R4, ZERO_START	;Test if relSteps-steps is zero
-	CMP		R0, R4
-	BEQ		Steps0	;If relSteps-steps == 0, set steps to zero
-	;BNE	SetCCW_RSmS	;If not, change dir to CCW and subtract steps from relative steps
-
-SetCCW_RSmS:
-	MOV32	R4, CCW		;Set dir to CCW
-	MOVA	R3, dir
-	STR		R4, [R3]
-
-;Remember R0 has relSteps and R2 has value of steps
-	SUB		R0, R2	;Calculate relSteps-steps
-	MOVA	R3, steps	;Set steps to relSteps-steps and save
-	STR		R0, [R3]
-
-	B		ENDSetRelAngle	;End setting relative angle
-
-Steps0:
-	MOV32	R4, ZERO_START	;Set steps to 0 and save
-	MOVA	R3, steps
-	STR		R0, [R3]
-
-	;B		ENDSetRelAngle	;End setting relative angle
-
-ENDSetRelAngle:
-	CPSIE	I	;Enable interrupts again
+EndSetRelAngle:
+;	CPSIE	I	;Enable interrupts again
 	POP    	{R0, R1, R2, R3, R4}	;Pop registers
 	BX		LR			;Return
 
@@ -504,11 +351,15 @@ ENDSetRelAngle:
 ;		steps = HSteps
 ;
 ;	enableinterrupts(ok stepping again)
+;NEWNEWNEW REFACTOR
+;HomeStepper()	 set the stepper motor to an absolute angle of 0 degrees
+;	- Just call SetAngle with the 0 input lol
+;
 ;	return
-HomeStepper:
+OldHomeStepper:
 	PUSH    {R0, R1, R2, R3, R4}	;Push registers
 
-	CPSID	I	;Disable interrupts to avoid critical code
+;	CPSID	I	;Disable interrupts to avoid critical code
 
 	MOVA	R1, pos	;Load current motor position in R0
 	LDR		R0, [R1]
@@ -533,7 +384,7 @@ HomeCCW:
 	MOVA	R1, dir
 	STR		R0, [R1]
 
-	B		ENDHomeStepper	;End setting step home
+	B		EndHomeStepper	;End setting step home
 
 HomeCW:
 ;Remember R0 has the number of steps to go home CCW
@@ -547,12 +398,30 @@ HomeCW:
 	MOVA	R1, dir
 	STR		R0, [R1]
 
-	;B		ENDHomeStepper	;End setting step home
+	;B		EndHomeStepper	;End setting step home
 
-ENDHomeStepper:
-	CPSIE	I	;Enable interrupts again
+EndOldHomeStepper:
+;	CPSIE	I	;Enable interrupts again
 	POP    	{R0, R1}	;Pop registers
 	BX		LR			;Return
+;NEWNEWNEW REFACTOR
+;HomeStepper()	 set the stepper motor to an absolute angle of 0 degrees
+;	- Just call SetAngle with the 0 input lol
+;
+;	return
+HomeStepper:
+	PUSH    {R0}	;Push registers
+
+	MOV32 R0, 0		;Set angle to 0 (home)
+	PUSH    {LR}
+	BL	SetAngle
+	POP     {LR}
+
+EndHomeStepper:
+	POP    	{R0}	;Pop registers
+	BX		LR			;Return
+
+
 
 ; GetAngle:
 ;
@@ -591,14 +460,25 @@ ENDHomeStepper:
 ;
 ; Pseudo Code
 ;
+; GetAngle() returns the current absolute angle of the stepper motor
+;	- Just fetch pos and return that foo
+;		- Make sure to pause interrupts because critical code
+;
 ;		R0 = pos
 ;		return R0
 GetAngle:
 	PUSH    {R1}	;Push register
 
-	MOVA	R1, pos
+;    CPSID   I   ;Disable interrupts to avoid critical code
+
+	MOVA	R1, pos	; Fetch the current position (in angle 0-359)
 	LDR		R0, [R1]
+
+;    CPSIE   I   ;Enable interrupts again
 
 EndGetAngle:
 	POP    	{R1}	;Pop registers
 	BX		LR			;Return
+
+
+.end

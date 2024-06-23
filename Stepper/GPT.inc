@@ -93,6 +93,8 @@ IMR_TA_MATCH  .EQU  0x00000002  ;enable timer A match interrupt
 IMR_TA_CAPEV .EQU 0x00000004  ;enable timer A capture mode event interrupt
 IMR_TB_MATCH  .EQU  0x00000800  ;enable timer B match interrupt
 
+IMR_TAB_TO   .EQU    0x00010001  ;enable timer A timeout interrupt
+
 ;   Timer Mode Registers TAMR/TBMR  *****
 ;       Bits    Name                Code    Description
 ;       0-1     Mode                0x0     Reserved
@@ -153,10 +155,19 @@ PRESC16_1p5ms   .EQU    0x00000001
 TIMER16_20ms    .EQU    0x0000A600   ;20ms for a 16 bit timer
 PRESC16_20ms    .EQU    0x0000000E
 
+TIMER16_250ms    .EQU    0x000000B7   ;250ms for a 16 bit timer
+PRESC16_250ms    .EQU    0x00001B00
+
+TIMER16_500ms    .EQU    0x00003600   ;500ms for a 16 bit timer
+PRESC16_500ms    .EQU    0x0000016E
+
+
 TIMER32_1us     .EQU    0x00000030   ;1us for a 32 bit timer
 TIMER32_1ms     .EQU    0x0000BB80   ;1ms for a 32 bit timer
 TIMER32_30ms    .EQU    0x0015F900   ;30ms for a 32 bit timer
 TIMER32_50ms    .EQU    0x00249F00   ;50ms for a 32 bit timer
+TIMER32_250ms   .EQU    0x00B71B00   ;250ms for a 32 bit timer
+TIMER32_500ms   .EQU    0x016E3600   ;500ms for a 32 bit timer
 TIMER32_MAX     .EQU    0xFFFFFFFF   ;maximum value for 32 bit timer
 
 GPTMATCH_250us  .EQU    0x00002EE0   ;250us for a 16 bit timer

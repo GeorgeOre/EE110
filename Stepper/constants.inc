@@ -39,18 +39,32 @@ WAIT1000        .EQU    1000  ;Constant for waiting 1000 units of time
 ;Stepping constants
 CW      .EQU    0   ;Represents clockwise stepping mode
 CCW     .EQU    1   ;Represents counterclockwise stepping mode
+STEPCW  .EQU    4   ;Value that offsets towards a CW step
+STEPCCW .EQU    -4  ;Value that offsets towards a CCW step
 DPOS    .EQU    6   ;The motor will increment 6 degrees at a time
 MAXSTEP .EQU    20  ;Maximum amount of steps in a motor cycle
 MINSTEP .EQU    0   ;Minimum amount of steps in a motor cycle
 HROT_STEPS .EQU 30  ;Represents how many steps are in half a rotation
 FROT_STEPS .EQU 60  ;Represents how many steps in a full rotation
+POS_OVERFLOW    .EQU    360 ;Represents a pos overflow
+POS_UNDERFLOW   .EQU    -1  ;Represents a pos underflow
+POS_WRAP    .EQU    359 ;Value to wrap to in case of a pos step underflow
+
+STEP_OVERFLOW .EQU    60 ;Upper limit of a step overflow
+STEP_WRAP    .EQU    59 ;Value to wrap to in case of a pos step underflow
+
+;Full step
+FULLSTEP1    .EQU   0x14000000 ;Pins to toggle for 1st step
+FULLSTEP2    .EQU   0x09000000 ;Pins to toggle for 2nd step
+FULLSTEP3    .EQU   0x14000000 ;Pins to toggle for 3rd step
+FULLSTEP4    .EQU   0x09000000 ;Pins to toggle for 4th step
 
 ;PWM output constants
-PWM_PIN1        .EQU    0x00200000  ;Used to toggle pin 21 with PWM
-PWM_NPIN1       .EQU    0x00400000  ;Used to toggle pin 22 with PWM
-PWM_PIN2        .EQU    0x01000000  ;Used to toggle pin 24 with PWM
-PWM_NPIN2       .EQU    0x04000000  ;Used to toggle pin 26 with PWM
-NOT_PINS        .EQU    0x04400000  ;Maps to the two inverted PWM pins
+PWM_PIN1        .EQU    0x01000000  ;Used to toggle pin 24 with PWM
+PWM_NPIN1       .EQU    0x08000000  ;Used to toggle pin 27 with PWM
+PWM_PIN2        .EQU    0x04000000  ;Used to toggle pin 26 with PWM
+PWM_NPIN2       .EQU    0x10000000  ;Used to toggle pin 28 with PWM
+NOT_PINS        .EQU    0x18000000  ;Maps to the two inverted PWM pins
 READY           .EQU    0   ;Status of PWM is ready
 SET             .EQU    1   ;Status of PWM is set
 

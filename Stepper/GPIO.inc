@@ -28,8 +28,9 @@ OUTPUT_ENABLE_4_7   .EQU    0x000000F0  ;Enable bits 4-7
 OUTPUT_ENABLE_8_17  .EQU    0x0003FF00  ;Enable bits 8-17
 OUTPUT_ENABLE_18    .EQU    0x00040000  ;Enable bit 18
 OUTPUT_ENABLE_20    .EQU    0x00100000  ;Enable bit 20
-OUTPUT_ENABLE_24_26 .EQU    0x05000000  ;Enable bits 24 and 26
+OUTPUT_ENABLE_24n26 .EQU    0x05000000  ;Enable bits 24 and 26
 OUTPUT_ENABLE_21_22_24_26 .EQU    0x05600000  ;Enable bits 21 22 24 and 26
+OUTPUT_ENABLE_24n26_28 .EQU    0x1D000000  ;Enable bits 24 26 27 and 28
 
 ;;;;;;Memory Register Addresses;;;;;;
 
