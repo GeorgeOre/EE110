@@ -24,11 +24,15 @@
     .ref    LowestLevelRead  ;   Handles an LCD read cycle
     .ref    WaitLCDBusy      ;   Waits until the LCD is not busy
 
+	.global cRow
+	.global cCol
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;                               Table of Contents
 ;       Function Name   |   Purpose
     .def    Display     ;   Display a string to the LCD
     .def    DisplayChar ;   Display a char to the LCD
+    .def    PrepLCD 	;   Prep the LCD to display a number
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Revision History:   02/04/24 George Ore   Created format
 ;                     05/30/24 George Ore   Ported to EE110a HW3
@@ -339,12 +343,85 @@ End_DisplayChar:
     POP     {R0, R1, R2, R3, R4}    ; Pop registers
     BX      LR                      ; Return
 
-	.data
+; PrepLCD:
+;
+; Description:   Clears the display and presets the preamble "SERVO POS: ".
+;
+; Operation:    Sends a clear screen command to the LCD and then displays the
+;				preamble using the Display function.
+;
+; Arguments:         None.
+;
+; Return Values:     None.
+;
+; Local Variables:   None.
+; Shared Variables:  None.
+; Global Variables:  None.
+;
+; Input:             None
+; Output:            None
+;
+; Error Handling:    None.
+;
+; Registers Changed: R0, R1, R2, R3, R4
+; Stack Depth:       2 words
+;
+; Algorithms:        None.
+; Data Structures:   None.
+; Known Bugs:        None.
+;
+; Limitations:       None.
+;
+; Revision History:  12/6/23   George Ore  created
+;                    12/7/23   George Ore  fixed bugs
+;                    12/8/23   George Ore  fixed bugs & format
+;
+; Pseudo Code
+;
+;	Clear LCD screen
+;
+;	Write preamble to LCD
+;
+;	return
+PrepLCD:
+	PUSH {R0, R1, R2, R3, R4}
 
-	.global cRow
-	.global cCol
+	PUSH {LR}
+	BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, CLR_LCD            ; Write clear display command
+    MOV32   R1, CLR_LCD_RS
+	PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+	PUSH {LR}
+	BL      WaitLCDBusy
+	POP {LR}
 
-;;;;;; Variable Declaration ;;;;;;
+; Write the preamble to the LCD
 
+    MOVA    R2, SentenceStringTable ; Start at the beginning of sentence data table
+    MOVA    R3, SStringAddressingTable ; and also the sentence addressing table
+
+    LDRB    R0, [R3], #NEXT_BYTE    ; Get the next row index from table and post increment address
+    LDRB    R1, [R3], #NEXT_BYTE    ; Get the next column index from table and post increment address
+    LDRB    R4, [R3], #NEXT_BYTE    ; Get the address offset to the next word
+
+	PUSH {LR}
+    BL      Display                 ; Call the function
+	POP {LR}
+
+EndPrepLCD:
+	POP {R0, R1, R2, R3, R4}
+	BX LR
+
+;PREAMBLE FOR PREPLCD vvvvvvvvvvv
+    .align 1
+SentenceStringTable:
+    .byte       'S', 'E', 'R', 'V', 'O', ' ', 'P', 'O', 'S', ':',  ' ', STRING_END
+
+    .align 1
+SStringAddressingTable:    ; Row Col Offset
+    .byte                  0,  0,  0xB
 
 .end

@@ -18,10 +18,22 @@
     .include "macros.inc"         ; contains all macros
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;                           Required Functions
+;LCD functions
+	.ref Display
+
 ;Reference LCD variables
-    .global cRow
-	.global cCol
 	.global charbuffer
+	.global angle
+
+;Reference tables
+	.ref PWMTable
+	.ref EndPWMTable
+
+    .ref SampleTable
+    .ref EndSampleTable
+
+    .ref ErrorCorrectionTable
+    .ref EndErrorCorrectionTable
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;                               Table of Contents
@@ -31,6 +43,10 @@
     .def    LowestLevelRead  ;   Handles an LCD read cycle
     .def    WaitLCDBusy      ;   Waits until the LCD is not busy
     .def	Int2Ascii		 ; 	 Converts an integer to ascii
+    .def	DisplayServo 	 ; 	 Displays the servo angle on LCD
+    .def	SetPWM		 	 ; 	 Displays the servo angle on LCD
+    .def	CalculatePWMRate ; 	 Calculates the relevant PWM rate
+   	.def 	ErrorCorrection
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Revision History:   02/04/24 George Ore   Created format
 ;                     05/30/24 George Ore   Ported to EE110a HW3
@@ -249,19 +265,16 @@ EndWrite:
 ;
 ; Pseudo Code
 ;
-;   while(counter!=0)
-;       reset TAR
-;       while(TAR!=0)
-;           NOP
-;       counter--
+;	Disable outputs
+;	Wait for  a cycle
+;	Read data
+;	return data in R0
+;
 LowestLevelRead:    ; R0 = 8 bit data busdata; R1 = RS value
     PUSH    {R1, R2, R3}    ; Push registers
 ; ASSUMES THAT IT IS IN READ MODE
     MOV32   R1, GPIO    ; Load GPIO and GPT2 (tCycle timer) base addresses
     MOV32   R2, GPT2
-
-;   MOV32   R3, LCD_READ    ; Enable read mode
-;   STR     R3, [R1, #DSET31_0]
 
 ; HandleSetupTimeR:
     ; Wait 280 ns setup time (must be at least 140 ns)
@@ -279,6 +292,7 @@ DataSetupDoneR:
 ;    MOV32   R3, ENABLE_HOLD ; Load LCD Enable hold time condition
     MOV32   R3, IRQ_TATO ; Load timeout interrupt condition
 
+    MOV32   R2, GPT2
     STREG   CTL_TA_STALL, R2, CTL   ; Enable 1us timer with debug stall
 
 tCycle_Loop1R:               ; Wait the enable hold time
@@ -295,6 +309,10 @@ ResetLCDEnableR:
     LDR     R0, [R1, #DIN31_0]         ; Fetch read data in R0
     PUSH    {R0}                       ; Store data in stack
     STREG   LCD_ENABLE, R1, DCLR31_0   ; Reset LCD enable pin
+
+
+    MOV32   R2, GPT2
+    STREG   CTL_TA_STALL, R2, CTL   ; Enable 1us timer with debug stall
 
     MOV32   R3, IRQ_TATO    ; 1us timer timeout condition
 
@@ -322,13 +340,12 @@ EndRead:
 
 ; WaitLCDBusy:
 ;
-; Description:   This procedure places an inputed eventID into the keybuffer
+; Description:   Waits (blocking) until the LCD is not longer busy
 ;
-; Operation:    Fetches dbnceFlag state and if set, it fetches the key value
-;       and converts it into an EventID before passing it to EnqueueEvent
+; Operation:    Reads LCD with read command until it sends a ready signal
 ;
-; Arguments:         R0 - amount of ms to wait
-; Return Values:     None, waits
+; Arguments:         None.
+; Return Values:     None.
 ;
 ; Local Variables:   None.
 ; Shared Variables:  None.
@@ -346,20 +363,16 @@ EndRead:
 ; Data Structures:   None.
 ; Known Bugs:        None.
 ;
-; Limitations:       Will be a blocking function for 1us for the tCycle
+; Limitations:       None.
 ;
 ; Revision History:  12/6/23   George Ore  Created
-;                    01/5/24   George Ore  Set GPIO with DSET31_0
-;                                          instead of using DOUT
-;                                          Added interrupt timer timeout
 ;
 ; Pseudo Code
 ;
-;   while(counter!=0)
-;       reset TAR
-;       while(TAR!=0)
-;           NOP
-;       counter--
+;	Set data pin 7 as an input
+;	Make sure to adjust output enables
+;	Keep reading until LCD is no longer busy
+;	Return
 WaitLCDBusy:    ; R0 = 8 bit data busdata; R1 = RS value
     PUSH    {R0, R1}    ; Push registers
 
@@ -369,20 +382,12 @@ WaitLCDBusy:    ; R0 = 8 bit data busdata; R1 = RS value
 
     ; Configure LCD data pin 7 as an input
     MOV32   R1, IOC                     ; Load base address
-;   STREG   IO_IN_CTRL,  R1, IOCFG8     ; Set LCD Data7 (GPIO pin 15) as an input
-;   STREG   IO_IN_CTRL,  R1, IOCFG9     ; Set LCD Data7 (GPIO pin 15) as an input
-;   STREG   IO_IN_CTRL,  R1, IOCFG10    ; Set LCD Data7 (GPIO pin 15) as an input
-;   STREG   IO_IN_CTRL,  R1, IOCFG11    ; Set LCD Data7 (GPIO pin 15) as an input
-;   STREG   IO_IN_CTRL,  R1, IOCFG12    ; Set LCD Data7 (GPIO pin 15) as an input
-;   STREG   IO_IN_CTRL,  R1, IOCFG13    ; Set LCD Data7 (GPIO pin 15) as an input
-;   STREG   IO_IN_CTRL,  R1, IOCFG14    ; Set LCD Data7 (GPIO pin 15) as an input
     STREG   IO_IN_CTRL,  R1, IOCFG15    ; Set LCD Data7 (GPIO pin 15) as an input
 ;   B       CheckBusyFlag
 
 CheckBusyFlag:
     MOV32   R1, GPIO                    ; Load base address
     STREG   LCD_READ, R1, DSET31_0      ; Set read mode
-;   STREG   LCD_ENABLE, R1, DSET31_0    ; Enable read
 
 CheckBusyFlagLoop:
     PUSH    {LR}    ; Call LowestLevelRead
@@ -394,18 +399,10 @@ CheckBusyFlagLoop:
     B       CheckBusyFlagLoop   ; Keep looping if not
 
 LCDNotBusy:
-;   STREG   LCD_ENABLE, R1, DCLR31_0    ; Disable read
     STREG   LCD_READ, R1, DCLR31_0      ; Disable read mode
 
 ; Reconfigure LCD data pin 7 as an output
 	MOV32   R1, IOC                     ; Load base address
-; STREG   IO_OUT_CTRL,  R1, IOCFG8   ; Set LCD Data7 (GPIO pin 15) as an input
-; STREG   IO_OUT_CTRL,  R1, IOCFG9   ; Set LCD Data7 (GPIO pin 15) as an input
-; STREG   IO_OUT_CTRL,  R1, IOCFG10  ; Set LCD Data7 (GPIO pin 15) as an input
-; STREG   IO_OUT_CTRL,  R1, IOCFG11  ; Set LCD Data7 (GPIO pin 15) as an input
-; STREG   IO_OUT_CTRL,  R1, IOCFG12  ; Set LCD Data7 (GPIO pin 15) as an input
-; STREG   IO_OUT_CTRL,  R1, IOCFG13  ; Set LCD Data7 (GPIO pin 15) as an input
-; STREG   IO_OUT_CTRL,  R1, IOCFG14  ; Set LCD Data7 (GPIO pin 15) as an input
 	STREG   IO_OUT_CTRL,  R1, IOCFG15   ; Set LCD Data7 (GPIO pin 15) as an output
 
 ; Disable output pins
@@ -423,10 +420,14 @@ EndWaitLCDBusy:
 ; Description:	Computes an integer into an ascii value and places it into
 ;				a buffer.
 ;
-; Operation:    Checks for sign and handles accordingly.
+; Operation:    Checks for sign and stores a negative sign into buffer if true.
+;				Uses division and mod to find divisors and remainder to parse
+;				the binary into decimal. Convert results in to ascii and store
+;				while incrementing to a count. Use that count to invert the
+;				buffer before saving it and returning.
 ;
-; Arguments:         R0 - amount of ms to wait
-; Return Values:     None, waits
+; Arguments:         R0 - target integer
+; Return Values:     None.
 ;
 ; Local Variables:   None.
 ; Shared Variables:  None.
@@ -444,20 +445,24 @@ EndWaitLCDBusy:
 ; Data Structures:   None.
 ; Known Bugs:        None.
 ;
-; Limitations:       Will be a blocking function for 1us for the tCycle
+; Limitations:       None.
 ;
 ; Revision History:  12/6/23   George Ore  Created
-;                    01/5/24   George Ore  Set GPIO with DSET31_0
-;                                          instead of using DOUT
-;                                          Added interrupt timer timeout
 ;
 ; Pseudo Code
 ;
-;   while(counter!=0)
-;       reset TAR
-;       while(TAR!=0)
-;           NOP
-;       counter--
+;	if negative
+;		add '-' to buffer and offset by 1
+;	count = 0
+;	while (remainder exists){
+;		divide and mod the integer
+;		convert it to ascii
+;		add it to the buffer
+;		count ++
+;	}
+;	swap the order of the counted (non '-') values
+;
+;	store into buffer
 Int2Ascii:    ; R0 = target integer ; R1 = Ascii string buffer pointer
     PUSH    {R0, R1, R2, R3, R4, R5, R6, R7}    ; Push registers
 
@@ -499,17 +504,11 @@ ConvertDigitLoop:
     BNE ConvertDigitLoop            ; Loop until all digits are processed
 
 ; Now the digits are in reverse order, reverse them to correct order
-    ; R3 Points to the beginning of the digits in buffer
-    ;ADD R4, R4, R7            ; Adjust R4 pointer to last character
-
     MOV R5, R7	; Save char count
-    ;RSB R7, R7, #0
     MOV R6, #0	; Make this one inverse
 
 ReverseLoop:
-;    ADD R6, R6, #ONE           ; Increment digit counter
     SUBS R7, R7, #ONE           ; Decrement digit counter
-;    BCC DoneReversing
     CBZ R7, DoneReversing
     LDRB R1, [R3]       ; Load digits
     LDRB R2, [R3, R7]
@@ -519,7 +518,6 @@ ReverseLoop:
     B ReverseLoop
 
 DoneReversing:
-;    ADD R3, R3, R5              ; Move pointer to the end of the string
     MOV R0, #STRING_END
     STRB R0, [R3, #NEXT_BYTE]        ; Null-terminate the string
 
@@ -568,5 +566,247 @@ DivByZero:
     POP {R2, R3, R4, R5, R6, R7}    ; Restore registers and return
     BX LR
 
+
+; CalculatePWMRate:
+;
+; Description:	The function is passed the position in degrees (pos) to which to
+;				set the servo. The position (pos) is passed in R0 by value. It
+;				is a signed integer between -90 and +90.
+;
+; Operation:    Fetches dbnceFlag state and if set, it fetches the key value
+;		and converts it into an EventID before passign it to EnqueueEvent
+;
+; Arguments:         R0 - amount of ms to wait
+; Return Values:     None, waits
+;
+; Local Variables:   None.
+; Shared Variables:  None.
+; Global Variables:  None.
+;
+; Input:             None
+; Output:            None
+;
+; Error Handling:    None.
+;
+; Registers Changed: R0, R1
+; Stack Depth:       1 word
+;
+; Algorithms:        None.
+; Data Structures:   None.
+;
+; Revision History:  12/6/24	George Ore	 created
+; 		  			 1/3/24		George Ore	 revised
+;
+; Pseudo Code
+;
+;	(ARGS: R0 = angle)
+;
+;	R0 = PWMTable(angle)
+;
+;	return R0 (timer match), R1 (match prescale)
+CalculatePWMRate:
+;	PUSH    {}	;No registers to push
+
+	MOV32	R1, LNIBBLE	;Preprocess angle for 16 bit operation
+	AND		R0, R1
+
+	MOV32	R1, ANGLE_INPUT_OFFSET	;Add 90 to get rid of negative values
+	SADD16	R0, R0, R1
+
+	MOVA	R1,	PWMTable	;Load base addresses of tables
+
+	LSL		R0, #PWM_SHIFT_OFFSET	;Adjust input to become address offset
+
+	ADD		R1, R0		;Add offset to addresses
+
+	LDRH	R0, [R1]	;Load R0 with the duty cycle match value
+    LDR		R1, [R1]	;and R1 with the prescale match value
+    LSR		R1, #PWM_PRESCALE_SHIFT
+
+EndCalculatePWMRate:
+;	POP    	{}	;No registers to pop
+	BX		LR			;Return
+
+; SetPWM:
+;
+; Description:	The function is passed the timer control settings to change the PWM.
+;				It writes to the timer registers to change PWM.
+;
+; Operation:    Fetches dbnceFlag state and if set, it fetches the key value
+;		and converts it into an EventID before passign it to EnqueueEvent
+;
+; Arguments:         R0 - amount of ms to wait
+; Return Values:     None, waits
+;
+; Local Variables:   None.
+; Shared Variables:  None.
+; Global Variables:  None.
+;
+; Input:             None
+; Output:            None
+;
+; Error Handling:    None.
+;
+; Registers Changed: R0, R1, R2, R3, R4
+; Stack Depth:       1 word
+;
+; Algorithms:        None.
+; Data Structures:   None.
+;
+; Revision History:  12/6/24	George Ore	 created
+; 		  			 1/3/24		George Ore	 revised
+;
+; Pseudo Code
+;
+;	(ARGS: R0 = TAMATCHR, R1 = TAPMR)
+;	TAMATCHR  = R0
+;	TAPMR	  = R1
+;	return
+SetPWM:
+	PUSH    {R0, R1, R2, R3}	;Push registers
+
+	MOV32	R2, GPT1		;Load base address
+
+
+	CPSID	I	;Disable interrupts to avoid critical code
+
+
+	PUSH	{R0}
+	STREG   GPT_CTL_TA_PWM_STALL, R2, CTL	;Disable timer
+	POP		{R0}
+
+
+
+	MOV32	R3, TAPMR
+	STR   	R1, [R2, R3] 	;Set timer match preset
+
+	MOV32	R3, TAMATCHR 	;Set timer match duration
+	STR   	R0, [R2, R3]
+
+	STREG   GPT_CTL_EN_TA_PWM_STALL, R2, CTL	;Enable timer
+
+	CPSIE	I	;Enable interrupts again
+
+
+ENDSetPWM:
+	POP    	{R0, R1, R2, R3}	;Pop registers
+	BX		LR			;Return
+
+
+
+; ErrorCorrection:
+;
+; Description:	Corrects the raw ADC input into an intger value and returns it into R0
+;
+; Operation:    Searches a table for the corresponding angle and fetches the first
+;				threshold match.
+;
+; Arguments:         R0 - Raw ADC sample
+; Return Values:     R0 - Corresponding integer
+;
+; Local Variables:   None.
+; Shared Variables:  None.
+; Global Variables:  None.
+;
+; Input:             None
+; Output:            None
+;
+; Error Handling:    None.
+;
+; Registers Changed: R0, R1, R2, R3, R4
+; Stack Depth:       1 word
+;
+; Algorithms:        None.
+; Data Structures:   None.
+;
+; Revision History:  12/30/24	George Ore	 created
+;
+; Pseudo Code
+;
+;	(ARGS: R0 = sample data)
+;	R0 = CorrectionTable(R0)
+;	return R0
+ErrorCorrection:
+	PUSH    {R1, R2, R3}	;Push registers
+
+	MOVA 	R2, SampleTable ;start at the beginning of table
+	MOV32	R3, ZERO_START	;load a counter variable to count search offset
+
+LookupTableLoop:
+	LDR		R1, [R2], #NEXT_WORD 	;Get the next sample in sample table
+
+TestSampleLoop: 			;Check if sample is less than the RAW ADC data in R0
+	CMP 	R1, R0 			;Compare sample with table data
+	BGE 	GetCorrectData	;When threshold is supassed, get the correct data
+	ADD		R3, R3, #NEXT_WORD	;Add one byte of distance to the counter
+	B 	LookupTableLoop 	;Keep traversing the sample table until the threshold is surpassed
+
+GetCorrectData:
+	MOVA	R2, ErrorCorrectionTable ;Start at the beginning of error correction table
+	LDR		R0, [R2, R3]	;Load corrected angle
+
+EndErrorCorrection:
+	POP    	{R1, R2, R3}	;Pop registers
+	BX		LR			;Return
+
+
+; DisplayServo:
+;
+; Description:	Displays the servo's position onto the LCD.
+;
+; Operation:    Fetches angle, converts it to ascii, stores it into the
+;				charbuffer, and displays it to the LCD.
+;
+; Arguments:         None.
+; Return Values:     None.
+;
+; Local Variables:   None.
+; Shared Variables:  None.
+; Global Variables:  None.
+;
+; Input:             None
+; Output:            None
+;
+; Error Handling:    None.
+;
+; Registers Changed: R0, R1, R2, R3, R4
+; Stack Depth:       1 word
+;
+; Algorithms:        None.
+; Data Structures:   None.
+;
+; Revision History:  12/6/24	George Ore	 created
+;
+; Pseudo Code
+;
+;	Fetch angle
+;	Convert angle to ascii and store into buffer
+;	Display buffer into LCD
+;
+;	return
+DisplayServo:
+	PUSH    {R0, R1, R2, R3}	;Push registers
+
+	MOVA	R1, angle	;Fetch angle address
+	LDR	R0, [R1]	;Fetch the angle
+
+; Prep the ascii buffer
+	MOVA	R1, charbuffer
+	PUSH    {LR}
+	BL Int2Ascii	; Returns
+	POP     {LR}
+
+; Display the value
+	MOV32	R0, DISPLAY_LCD_ROW	; Set the default display position
+	MOV32	R1, DISPLAY_LCD_COL
+    MOVA    R2, charbuffer     	; Start at the beginning of word data table
+
+	PUSH    {LR}
+    BL      Display                 ; Call the function (should increment R2 address)
+	POP     {LR}
+
+EndDisplayServo:
+	POP    	{R0, R1, R2, R3}	;Pop registers
+	BX		LR			;Return
 
 .end

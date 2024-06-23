@@ -112,7 +112,7 @@ NEXT_CHAR       .EQU    1   ;Used to address next char address
 DB_SETUP_TIME   .EQU    14  ;Used as a counter to wait for setup time to pass
 DB_HOLD_TIME    .EQU    14  ;Used as a counter to wait for hold time to pass
 DISPLAY_LCD_ROW .EQU    0   ;Default row to display on LCD
-DISPLAY_LCD_COL .EQU    3   ;Default column to display on LCD
+DISPLAY_LCD_COL .EQU    12   ;Default column to display on LCD
 
 
 ;;;;;;Cursor Variable Constants;;;;;;
