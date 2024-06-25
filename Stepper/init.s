@@ -26,8 +26,15 @@
 	.ref	GPT1EventHandler	;	Step one degree in PWM
 	.ref	GPT2EventHandler	;	To wait
 	.ref	GPT3EventHandler	;	To wait
+
+	.ref	Wait_1ms			; 	Wait in units of 1ms
+	.ref	WaitLCDBusy			; 	Wait (blocking) while LCD is busy
+	.ref	LowestLevelWrite	;	Write a command to the LCD
+
 	.global pwm1_step
 	.global pwm2_step
+    .global angle
+    .global pwm_stat
 	.global VecTable
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;								Table of Contents
@@ -38,6 +45,7 @@
 	.def	InitGPTs	;	Initialize GPTs
 	.def	MoveVecTable		;	To wait
 	.def	InstallGPTHandlers	;	To wait
+	.def	InitLCD		;	To wait
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Revision History:	02/04/24	George Ore	Created format
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -208,7 +216,31 @@ ENDInitClocks:
 ;	Enable pins 0-3 as outputs
 ;	BX		LR			;Return
 InitGPIO:
-	;Write to IOCFG18 to be a PWM data output
+
+    ; Write to IOCFG8-15 to be databus outputs
+    MOV32   R1, IOC                     ; Load base address
+    STREG   IO_OUT_CTRL, R1, IOCFG8     ; Set GPIO pin 8 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG9     ; Set GPIO pin 9 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG10    ; Set GPIO pin 10 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG11    ; Set GPIO pin 11 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG12    ; Set GPIO pin 12 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG13    ; Set GPIO pin 13 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG14    ; Set GPIO pin 14 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG15    ; Set GPIO pin 15 as an output
+
+; *** AVOID GPIO 16 and 17 because they are used for debugging
+
+    ; Write to IOCFG18 to be chip enable (E) output
+    STREG   IO_OUT_CTRL, R1, IOCFG18    ; Set GPIO pin 18 as an output
+
+    ; Write to IOCFG19 to be register select (RW) output
+    STREG   IO_OUT_CTRL, R1, IOCFG19    ; Set GPIO pin 19 as an output
+
+    ; Write to IOCFG20 to be register select (RS) output
+    STREG   IO_OUT_CTRL, R1, IOCFG20    ; Set GPIO pin 20 as an output
+
+
+	;Write to IOCFG24, 26-28 to be the four stepping data outputs
 	MOV32	R1, IOC						;Load base address
 	STREG   IO_OUT_CTRL, R1, IOCFG24	;Set GPIO pin 24 as an output
 	STREG   IO_OUT_CTRL, R1, IOCFG26	;Set GPIO pin 26 as an output
@@ -216,7 +248,7 @@ InitGPIO:
 	STREG   IO_OUT_CTRL, R1, IOCFG28	;Set GPIO pin 28 as an output
 
 	MOV32	R1, GPIO					;Load base address
-	STREG   OUTPUT_ENABLE_24n26_28, R1, DOE31_0	;Enable pins 24 and 26-28 as output
+	STREG   OUTPUT_ENABLE_STEPPER_LCD, R1, DOE31_0	;Enable pins 24 and 26-28 as output
 
 	BX		LR							;Return
 
@@ -465,6 +497,128 @@ InstallGPTHandlers:
     STR     R0, [R1, #(4 * GPT3A_EX_NUM)]   ;store vector addresses
 
     BX      LR						;all done, return
+
+
+; InitLCD:
+;
+; Description:	Initalizes the LCD.
+;
+; Operation:    Sends SPI commands to initalize the LCD. Has
+;				delays as specified by the datasheet.
+;
+; Arguments:         None.
+; Return Values:     None.
+;
+; Local Variables:   None.
+; Shared Variables:  None.
+; Global Variables:  None.
+;
+; Input:             None
+; Output:            None
+;
+; Error Handling:    None.
+;
+; Registers Changed: R0, R1, R2, R3, R4
+; Stack Depth:       1 word
+;
+; Algorithms:        None.
+; Data Structures:   None.
+;
+; Revision History:  12/6/24	George Ore	 created
+;
+; Pseudo Code
+;
+;	Function commands and delay font and lines
+;
+;	Turn LCD off
+;	Clear LCD command
+;	Entry mode set command
+;	Write command
+;
+;	return
+InitLCD:    ; The following is LCD function set/startup
+    MOV32   R0, WAIT30             ; Wait 30 ms (15 ms min)
+    PUSH {LR}
+    BL      Wait_1ms
+	POP {LR}
+    PUSH {LR}
+    BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    MOV32   R0, WAIT8              ; Wait 8 ms (4.1 ms min)
+    PUSH {LR}
+    BL      Wait_1ms
+	POP {LR}
+
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    MOV32   R0, WAIT1              ; Wait 1 ms (100 us min)
+    PUSH {LR}
+    BL      Wait_1ms
+	POP {LR}
+
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+; From here we need to wait until the busy flag is reset before executing the next command
+    PUSH {LR}
+    BL      WaitLCDBusy
+   	POP {LR}
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    PUSH {LR}
+    BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, LCD_OFF            ; Write display off command
+    MOV32   R1, LCD_OFF_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    PUSH {LR}
+    BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, CLR_LCD            ; Write clear display command
+    MOV32   R1, CLR_LCD_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    PUSH {LR}
+    BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, FWD_INC            ; Write entry mode set command
+    MOV32   R1, ENTRY_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    PUSH {LR}
+    BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, CUR_BLINK          ; Write display on command
+    MOV32   R1, LCD_ON_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+	BX	LR	;Return
 
 
 .end

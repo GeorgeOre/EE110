@@ -59,7 +59,11 @@ GPT_CTL_TAEV_BOTH  .equ    0x0000000C   ;timer A event on both edges
 GPT_CTL_TASTALL    .equ    0x00000002   ;stop timer A during debug halt
 GPT_CTL_TAEN       .equ    0x00000001   ;enable timer A
 GPT_CTL_TADIS      .equ    0x00000000   ;disable timer A
-CTL_TA_STALL       .EQU    0x00000003   ;enable timer A w/ stall
+
+CTL_TA_STALL       .EQU    0x00000203   ;enable timer A w/ stall
+
+CTL_TA_AB_STALL       .EQU    0x00000203   ;enable timer A w/ stall
+CTL_TB_AB_STALL       .EQU    0x00000302   ;enable timer B w/ stall
 
 ;   Interrupt Mask Register IMR
 ;       Bits    Name                Code    Description
@@ -93,7 +97,7 @@ IMR_TA_MATCH  .EQU  0x00000002  ;enable timer A match interrupt
 IMR_TA_CAPEV .EQU 0x00000004  ;enable timer A capture mode event interrupt
 IMR_TB_MATCH  .EQU  0x00000800  ;enable timer B match interrupt
 
-IMR_TAB_TO   .EQU    0x00010001  ;enable timer A timeout interrupt
+IMR_TAB_TO   .EQU    0x00000101  ;enable timer A timeout interrupt
 
 ;   Timer Mode Registers TAMR/TBMR  *****
 ;       Bits    Name                Code    Description
@@ -205,7 +209,9 @@ GPT_IRQ_DMAA       .equ    0x00000020   ;timer A DMA interrupt
 GPT_IRQ_TAM        .equ    0x00000010   ;timer A match interrupt
 GPT_IRQ_CAE        .equ    0x00000004   ;timer A capture event interrupt
 GPT_IRQ_CAM        .equ    0x00000002   ;timer A capture mode match interrupt
+
 IRQ_TATO           .equ    0x00000001   ;timer A timeout interrupt
+IRQ_TBTO           .equ    0x00000100   ;timer B timeout interrupt
 
 ; SYNC - timer synchronization register
 

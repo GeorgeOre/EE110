@@ -117,6 +117,8 @@
 	.ref	InitGPTs
 	.ref	MoveVecTable
 	.ref	InstallGPTHandlers
+	.ref	InitLCD
+	.ref	PrepLCD
 
 ;Reference HW4 functions
 	.ref	SetAngle	;	Set the stepper to a certain angle
@@ -127,6 +129,7 @@
 ;Reference utility functions
 	.ref	Wait_1ms
 	.ref	SetPWM
+	.ref	DisplayStepper
 
 ;Reference SPI and serial functions
 	.ref	SerialSendRdy
@@ -182,6 +185,10 @@ InitStack:
 ;;;;;;Initalize GPTs;;;;;;
 	BL	InitGPTs
 
+;;;;;;Initalize LCD;;;;;;
+	BL	InitLCD
+
+
 ;;;;;;Init Variable Values;;;;;;
 InitVariables:
     CPSID   I   ;Disable interrupts to avoid critical code THIS MIGHT BE REMOVABLE
@@ -209,7 +216,7 @@ InitVariables:
 ;;;;;;Init Register Values;;;;;;
 ;InitRegisters:
 	MOV32	R1, GPIO		;Load base address
-	STREG   ALL_PINS, R1, DCLR31_0	;Clear all GPIO pins
+	;STREG   ALL_PINS, R1, DCLR31_0	;Clear all GPIO pins
 	STREG   NOT_PINS, R1, DSET31_0	;Set inverted pins
 
     CPSIE   I   ;Enable interrupts again THIS MIGHT BE REMOVABLE
@@ -243,8 +250,9 @@ TestStepperLoop:
 	LDRH 	R5, [R4], #2 	;get iterations from the table
 
 TestGetStepperLoop: 			;loop testing GetStepper function
-;	BL 		GetStepper 		;call GetStepper
-;	BL 		DisplayStepper 	;display GetStepper results
+	BL 		GetAngle 		;call GetAngle
+	BL		PrepLCD
+	BL 		DisplayStepper 	;display GetStepper results
 	LDRH 	R0, [R4] 		;get the time delay from the table
 	BL 		Wait_1ms 		;delay amount specified
 	SUBS 	R5, #1 			;update loop counter
@@ -261,10 +269,16 @@ CheckDoneTest: 				;check if tests done
 
 DoneTestStepper: ;done testing Stepper
 
-test:
-	NOP
-	B	TestStepper
-	B	test
+	BL		HomeStepper			;Set the stepper home at the end
+
+HomeLoop:
+	BL 		GetAngle 		;call GetAngle
+	BL		PrepLCD
+	BL 		DisplayStepper 	;display GetStepper results
+
+	MOV32	R0, 30			;wait 30 ms to actually see the display
+	BL 		Wait_1ms 		;delay amount specified
+	B	HomeLoop
 
 ;*******************************************************************************
 ;USED FUNCTIONS
@@ -291,6 +305,10 @@ test:
 	.global pwm1_step
 	.global pwm2_step
 
+	.global cRow
+	.global cCol
+	.global charbuffer
+
 	.global VecTable
 
 ;;;;;;Variable Declaration;;;;;;
@@ -315,6 +333,18 @@ pwm1_step:	.space 4	;2 byte (16 bit) unsigned value representing the current
 pwm2_step:	.space 4	;2 byte (16 bit) unsigned value representing the current
 						;motor stepping index for a lookup table
 						;(3C max theoretically with 60 steps which is the min)
+
+; Vars for Int2Ascii
+	.align 4
+charbuffer: .space 12       ; Buffer to store ASCII characters (including negative sign and null terminator)
+
+; LCD Vars
+    .align 4
+cRow:   .space 4    ; cRow holds the index of the cursor
+
+    .align 4
+cCol:   .space 4    ; cCol holds the index of the column
+
 
 ;;;;;;Stack Declaration;;;;;;
 	.align  8			;the stack (must be double-word aligned)

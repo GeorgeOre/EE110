@@ -470,12 +470,12 @@ EndHomeStepper:
 GetAngle:
 	PUSH    {R1}	;Push register
 
-;    CPSID   I   ;Disable interrupts to avoid critical code
+    CPSID   I   ;Disable interrupts to avoid critical code
 
 	MOVA	R1, pos	; Fetch the current position (in angle 0-359)
 	LDR		R0, [R1]
 
-;    CPSIE   I   ;Enable interrupts again
+    CPSIE   I   ;Enable interrupts again
 
 EndGetAngle:
 	POP    	{R1}	;Pop registers

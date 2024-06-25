@@ -32,6 +32,11 @@ OUTPUT_ENABLE_24n26 .EQU    0x05000000  ;Enable bits 24 and 26
 OUTPUT_ENABLE_21_22_24_26 .EQU    0x05600000  ;Enable bits 21 22 24 and 26
 OUTPUT_ENABLE_24n26_28 .EQU    0x1D000000  ;Enable bits 24 26 27 and 28
 
+OUTPUT_ENABLE_STEPPER .EQU    0x1D000000  ;Enable bits 24 26 27 and 28
+OUTPUT_ENABLE_LCD .EQU    0x001CFF00  ;Enable bits 24 26 27 and 28
+
+OUTPUT_ENABLE_STEPPER_LCD .EQU  0x1D1CFF00  ;Enable stepper and LCD
+
 ;;;;;;Memory Register Addresses;;;;;;
 
 ;Base Address
