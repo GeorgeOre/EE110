@@ -383,17 +383,25 @@ UpdateSteps:
 	B	HandleUpdateSteps	;If not, update steps
 
 HandleNegativeSteps:
-    RSBS R0, R0, #0	; Take two's complement to get positive equivalent
+;    RSBS R0, R0, #0	; Take two's complement to get positive equivalent
 
-	PUSH {LR}
-	BL	SWITCHFULLSTEPDIRECTION
-	POP {LR}
+;	PUSH {LR}
+;	BL	SWITCHFULLSTEPDIRECTION
+;	POP {LR}
+
+	ADD	R0, R0, #360	;Add 360 to turn it positive
+
 	;B	HandleUpdateSteps
 
 HandleUpdateSteps:
-	MOVA	R1, steps
+
 ;THIS CODE ASSUMES THAT THE INTERRUPTS HAVE ALREADY BEEN PAUSED
 ;	CPSID	I	;Disable interrupts to avoid critical code
+
+	MOV32 R1, 18
+	SDIV	R0, R0, R1
+
+	MOVA	R1, steps
 	STR		R0,	[R1]
 ;	CPSIE	I	;Enable interrupts again
 
@@ -462,10 +470,10 @@ SetFullStep4:
 	B EndFullStep
 
 EndFullStep:
-	MOV32	R0, 30	;Wait 30 ms
-	PUSH {LR}
-	BL	Wait_1ms
-	POP  {LR}
+;	MOV32	R0, 30	;Wait 30 ms
+;	PUSH {LR}
+;	BL	Wait_1ms
+;	POP  {LR}
 
 	POP    	{R0, R1}	;Pop registers
 	BX		LR			;Return
@@ -611,14 +619,58 @@ SWITCHFULLSTEPDIRECTION:
 	LDR 	R0, [R1]
 
 GPIOSwitchStep:
+	CMP	R0, #FULLSTEP4
+	BEQ		SwitchFullStep4
+	CMP	R0, #FULLSTEP3
+	BEQ		SwitchFullStep3
+	CMP	R0, #FULLSTEP2
+	BEQ		SwitchFullStep2
+	CMP	R0, #FULLSTEP1
+	BEQ		SwitchFullStep1
+	B	EndFullStep
+
+SwitchFullStep1:
 	MOV32 R1, GPIO	;Toggle step 1
+	STREG FULLSTEP2, R1, DTGL31_0
+
+	MOV32	R0, FULLSTEP4	;Exchange step var
+	MOVA	R1, pwm_stat1
 	STR		R0, [R1]
+	B EndFullStep
+
+SwitchFullStep2:
+	MOV32 R1, GPIO	;Toggle step 2
+	STREG FULLSTEP3, R1, DTGL31_0
+
+	MOV32	R0, FULLSTEP1	;Exchange step var
+	MOVA	R1, pwm_stat1
+	STR		R0, [R1]
+	B EndFullStep
+
+SwitchFullStep3:
+	MOV32 R1, GPIO	;Toggle step 2
+	STREG FULLSTEP3, R1, DTGL31_0
+
+	MOV32	R0, FULLSTEP2	;Exchange step var
+	MOVA	R1, pwm_stat1
+	STR		R0, [R1]
+	B EndFullStep
+
+SwitchFullStep4:
+	MOV32 R1, GPIO	;Toggle step 2
+	STREG FULLSTEP4, R1, DTGL31_0
+
+	MOV32	R0, FULLSTEP3	;Exchange step var
+	MOVA	R1, pwm_stat1
+	STR		R0, [R1]
+	;B SWITCHFULLSTEPDIRECTION
+
 
 EndSWITCHFULLSTEPDIRECTION:
-	MOV32	R0, 30	;Wait 30 ms
-	PUSH {LR}
-	BL	Wait_1ms
-	POP  {LR}
+;	MOV32	R0, 30	;Wait 30 ms
+;	PUSH {LR}
+;	BL	Wait_1ms
+;	POP  {LR}
 
 	POP    	{R0, R1}	;Pop registers
 	BX		LR			;Return

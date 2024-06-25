@@ -713,13 +713,22 @@ EndPWMSinMinReq:
 ;;;;;;Testing Tables;;;;;;
 
 TestStepperTab: ;Argument 	Read Iters	;Delay (ms)
-	.half 		359, 		16,	 		500
-	.half 		0, 		16,	 		500
-	.half 		180, 		8,	 		500
-	.half 		270, 		8,	 		500
-	.half 		359, 		8,	 		500
-	.half 		90, 		8,	 		500
-	.half 		180,		8,	 		500
+	.half 		36, 		3,	 		500
+;	.half 		72, 		3,	 		500
+;	.half 		108, 		3,	 		500
+;	.half 		144, 		3,	 		500
+	.half 		180, 		3,	 		500
+;	.half 		216, 		3,	 		500
+;	.half 		252,		3,	 		500
+;	.half 		288,		3,	 		500
+	.half 		324,		3,	 		500
+	.half 		0, 			3,	 		500
+
+	.half 		144, 		3,	 		500
+
+	.half 		72, 		3,	 		500
+
+	.half 		252,		3,	 		500
 
 EndTestStepperTab:
 

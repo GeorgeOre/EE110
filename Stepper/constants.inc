@@ -50,7 +50,9 @@ POS_OVERFLOW    .EQU    360 ;Represents a pos overflow
 POS_UNDERFLOW   .EQU    -1  ;Represents a pos underflow
 POS_WRAP    .EQU    359 ;Value to wrap to in case of a pos step underflow
 
-STEP_OVERFLOW .EQU    60 ;Upper limit of a step overflow
+SINGLE_STEP_ANGLE .EQU 18
+
+STEP_OVERFLOW .EQU   20 ;Upper limit of a step overflow
 STEP_WRAP    .EQU    59 ;Value to wrap to in case of a pos step underflow
 
 ;Full step

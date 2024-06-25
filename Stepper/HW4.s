@@ -154,21 +154,22 @@ SetAngle:
 
 SetAngleParams:
 	MOVA	R2, pos	;Load motor position in R1****
-;	CPSID	I	;Disable interrupts to avoid critical code
+	CPSID	I	;Disable interrupts to avoid critical code
 	LDR		R1, [R2]
 
 ;Calculate the difference in angle to get signed steps
 	SUB		R0, R0, R1
 
-	PUSH	{LR}
-	BL UpdateDirection
-	POP		{LR}
+;FOR NOW ONLY CW STEPS WILL WORK
+;	PUSH	{LR}
+;	BL UpdateDirection
+;	POP		{LR}
 
 	PUSH	{LR}
 	BL UpdateSteps
 	POP		{LR}
 
-;	CPSIE	I	;Enable interrupts again
+	CPSIE	I	;Enable interrupts again
 
 EndSetAngle:
 	POP    	{R0, R1, R2}	;Pop registers

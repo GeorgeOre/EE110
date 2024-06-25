@@ -236,7 +236,10 @@ TestStepper: ;do the Stepper function tests
 TestStepperLoop:
 	LDRSH	R0, [R4], #2 	;get the SetStepper argument from table
 
+;	CPSID	I	;Disable interrupts to avoid critical code
 	BL 		SetAngle		;call the function
+;	CPSIE	I	;Enable interrupts again
+
 	LDRH 	R5, [R4], #2 	;get iterations from the table
 
 TestGetStepperLoop: 			;loop testing GetStepper function
@@ -251,6 +254,7 @@ TestGetStepperLoop: 			;loop testing GetStepper function
 CheckDoneTest: 				;check if tests done
 	ADD		R4, #2			;get past delay entry in table
 	MOVA 	R5, EndTestStepperTab	;check if at end of table
+	SUB		R5, R5, #1
 	CMP 	R4, R5
 	BNE 	TestStepperLoop	;not done with tests, keep looping
 	;BEQ 	DoneTestStepper 	;otherwise done testing the Stepper

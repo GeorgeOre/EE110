@@ -26,6 +26,7 @@
 	.ref PWM25kHzSinTable
 	.ref PWM25kHzCosTable
 	.ref SetPWM
+	.ref FullStep
 	.global pwm_stat1
 	.global pwm_stat2
 	.global steps
@@ -191,7 +192,7 @@
 ;		- IMPORTANT FOR CRITICAL CODE
 ;
 GPT1EventHandler:
-	;PUSH    {R0, R1, R2}	;R0-R3 are autosaved
+	PUSH    {R0, R1, R2}	;R0-R3 are autosaved
 	PUSH    {R3, R4}			;Push used register
 
 	MOVA	R2, steps	;Load the motor step queue in R0
@@ -218,36 +219,40 @@ HandleCWStep:
 	MOVA	R2, steps
 	STR		R0, [R2]
 
-	;Update pos and curStep
-	MOVA	R1, pos
+	;Update curStep
+	MOVA	R1, curStep
 	LDR		R0, [R1]
 	ADD		R0, R0, #ONE
-	MOV32	R2, POS_OVERFLOW
+	MOV32	R2, STEP_OVERFLOW
 	CMP		R0, R2
-	BLT		PosUpdated
-	;BGE	PosOverflowed
+	BLT		CurStepUpdated
+	;BGE	StepOverflowed
 
-;PosOverflowed:
-	MOV32	R2, ZERO_START	;Wrap pos if overflowed
+;StepOverflowed:
+	MOV32	R2, ZERO_START	;Wrap curStep if overflowed
 	STR		R2, [R1]
-;curStep is the same as pos so save that also
-	MOVA	R1, curStep
+;pos is the same as curStep but multiplied by MAX_STEPS
+	MOV32	R3, MAXSTEP
+	MUL		R2, R2, R3
+	MOVA	R1, pos
 	STR	R2, [R1]
 
-	MOV32	R0, -359*4	;Get the offset ready to wrap
-	B	UpdateStepPWM
+;	MOV32	R0, -359*4	;Get the offset ready to wrap
+	B	UpdateStep
 
-PosUpdated:
+CurStepUpdated:
 	STR	R0, [R1]
-;curStep is the same as pos so save that also
-	MOVA	R1, curStep
+;pos is the same as curStep but multiplied by MAX_STEPS
+	MOV32	R2, SINGLE_STEP_ANGLE
+	MUL		R0, R0, R2
+	MOVA	R1, pos
 	STR	R0, [R1]
 
 ;	MOV32	R0, STEPCW	;Set a CW step offset variable
 	LSL	R0, #2	;Set a CW step offset variable
 	;ADD R0, R0, #4
 
-	B	UpdateStepPWM
+	B	UpdateStep
 
 HandleCCWStep:
 	SUB		R0, R0, #ONE	;Decrement and save step queue var
@@ -260,7 +265,7 @@ HandleCCWStep:
 	SUB		R0, R0, #ONE
 	MOV32	R2, POS_UNDERFLOW
 	CMP		R0, R2
-	BGE		PosUpdated2
+	BGE		CurStepUpdated2
 	;BLT	PosUnderflowed
 
 ;PosUnderflowed:
@@ -271,9 +276,9 @@ HandleCCWStep:
 	STR	R2, [R1]
 
 	MOV32	R0, 359*4	;Get the offset ready to wrap
-	B	UpdateStepPWM
+	B	UpdateStep
 
-PosUpdated2:
+CurStepUpdated2:
 	STR	R0, [R1]
 ;curStep is the same as pos so save that also
 	MOVA	R1, curStep
@@ -284,43 +289,22 @@ PosUpdated2:
 	;SUB R0, R0, #4
 
 
-	;B	UpdateStepPWM
+	;B	UpdateStep
 
-UpdateStepPWM:
-;Fetch the new PWM the stepping tables
-	MOVA	R1, PWM1kHzCosTable	;Load cos table
-	MOVA	R2, PWM1kHzSinTable	;Load sin table
+UpdateStep:
 
-;Add the appropriate offset to each
-	ADD		R1, R1, R0
-	ADD		R2, R2, R0
-
-;Fetch table values
-	LDR	R0, [R1]
-	LDR	R3, [R2]
-
-;Update the PWM of each according to the table value
-
-	;MOV32	R0, R0	;Set the PWM match value from the table
-	MOV32	R1, 0	;Set the prescale value to 0
-	MOV32	R2, GPT2	;Set the address to PWM timer 1
 	PUSH {LR}
-	BL	SetPWM
-	POP  {LR}
+	BL	FullStep
 
-	MOV	R0, R3	;Set the PWM match value from the table
-	;MOV32	R1, 0	;Set the prescale value to 0
-	MOV32	R2, GPT3	;Set the address to PWM timer 2
-	PUSH {LR}
-	BL	SetPWM
 	POP  {LR}
 
 EndGPT1EventHandler:
 	MOV32 	R1, GPT1				;Load base into R1
 	STREG   IRQ_TATO, R1, ICLR  	;Clear timer A timeout interrupt
 	POP    {R3, R4}						;POP used register
-	;POP    {R0, R1, R2}			;R0-R2 are autorestored
+	POP    {R0, R1, R2}			;R0-R2 are autorestored
 	BX      LR                      ;return from interrupt
+
 
 ; GPT2EventHandler:
 ;
