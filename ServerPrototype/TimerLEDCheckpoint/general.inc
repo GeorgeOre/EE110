@@ -31,6 +31,8 @@ ZERO_START      .EQU    0           ;Zero used for starting counts
 COUNT_DONE      .EQU    0           ;Zero used for ending decrementing counts
 
 ;Indexing/Offset
+SHIFT_BIT       .EQU    1           ;Used for shifting bits a single bit
+SHIFT_NIBBLE    .EQU    2           ;Used for shifting bits a nibble
 NEXT_BYTE       .EQU    1           ;Used for addressing to the next byte
 NEXT_HALF       .EQU    2           ;Used for addressing to the next halfword
 NEXT_WORD       .EQU    4           ;Used for addressing to the next word
@@ -38,7 +40,8 @@ BYTES_PER_WORD  .EQU    4           ;4 bytes in each word
 
 ;Data masks
 BYTEMASK        .EQU    0x000000FF  ;Used to filter for first byte
-LNIBBLE         .EQU    0x0000FFFF  ;Used to filter for lower nibble
+LNIBBLE         .EQU    0x0000000F  ;Used to filter for lower nibble
+HNIBBLE         .EQU    0x000000FF  ;Used to filter for higher nibble
 
 ;Ascii constants
 ASCII_ZERO      .EQU    48          ;Represents a zero in ascii

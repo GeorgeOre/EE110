@@ -275,8 +275,8 @@ DivByZero:
 ;
 ;
 
-;	.global ti_sysbios_knl_Event_post__E
-
+;	.global ti_sysbios_knl_Event_post__E THIS IS NOT NEEDED
+;	.ref Event_post
 
 ; GPT0AEventHandler
 ;
@@ -305,14 +305,15 @@ DivByZero:
 ; Stack Depth:       5+ words
 ;
 ; Revision History:  02/18/21   Glen George      initial revision
-
+	;.include <ti/sysbios/knl/Event_defs.h>
 GPT0AEventHandler:
         .def    GPT0AEventHandler
 
 
         ;external references
-        .ref    redLEDEvent                     ;the event to post to
+;        .ref    redLEDEvent                     ;the event to post to
 ;        .ref    ti_sysbios_knl_Event_post__E    ;the posting function
+        .ref    ti_sysbios_knl_Event_post    ;the posting function
 
 
 
@@ -321,10 +322,13 @@ GPT0AEventHandler:
 
 
 SendTimeoutEvent:                       ;send the timeout event
-        MOVA    R1, redLEDEvent         ;get the event handle
+;        MOVA    R1, redLEDEvent         ;get the event handle
         LDR     R0, [R1]
         MOV32   R1, TIMEOUT_EVENT       ;get the event to post and post it
 ;        BL      ti_sysbios_knl_Event_post__E
+        BL      ti_sysbios_knl_Event_post
+;        BL      Event_post
+
         ;B      ResetInt                ;and reset the interrupt
 
 
@@ -369,7 +373,7 @@ DoneInterrupt:                          ;done with interrupt
 ;
 ; Revision History:  02/18/21   Glen George      initial revision
 
-InitLEDs:
+;InitLEDs:
 ;        .def    InitLEDs
 
 

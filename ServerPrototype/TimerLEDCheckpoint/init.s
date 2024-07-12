@@ -220,6 +220,20 @@ ENDInitClocks:
 ;
 ;	BX		LR			;Return
 InitGPIO:
+    ; Write to IOCFG0-3 to be row testing outputs
+    MOV32   R1, IOC                    ; Load base address
+    STREG   IO_OUT_CTRL, R1, IOCFG0    ; Set GPIO pin 0 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG1    ; Set GPIO pin 1 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG2    ; Set GPIO pin 2 as an output
+    STREG   IO_OUT_CTRL, R1, IOCFG3    ; Set GPIO pin 3 as an output
+
+    ; Write to IOCFG4-7 to be column testing inputs
+    STREG   IO_IN_CTRL, R1, IOCFG4     ; Set GPIO pin 4 as an input
+    STREG   IO_IN_CTRL, R1, IOCFG5     ; Set GPIO pin 5 as an input
+    STREG   IO_IN_CTRL, R1, IOCFG6     ; Set GPIO pin 6 as an input
+    STREG   IO_IN_CTRL, R1, IOCFG7     ; Set GPIO pin 7 as an input
+
+
     ; Write to IOCFG8-15 to be databus outputs
     MOV32   R1, IOC                     ; Load base address
     STREG   IO_OUT_CTRL, R1, IOCFG8     ; Set GPIO pin 8 as an output
@@ -246,10 +260,11 @@ InitGPIO:
 	STREG   IO_OUT_CTRL, R1, IOCFG30	;Set GPIO pin 30 as an output
 
     ; Write to DOE31_0 to enable keypad and LCD relevant pins as outputs
-	MOV32	R0, OUTPUT_ENABLE_KEYPAD_OUTPUTS	; Load keypad pins
-	MOV32	R1, OUTPUT_ENABLE_LCD				; Load LCD pins
-	AND		R0, R1				; Combine them
+;	MOV32	R0, OUTPUT_ENABLE_KEYPAD_OUTPUTS	; Load keypad pins
+;	MOV32	R1, OUTPUT_ENABLE_LCD				; Load LCD pins
+;	AND		R0, R1				; Combine them
 
+	MOV32	R0, OUTPUT_ENABLE_KEYPAD_LCD
 	MOV32	R1, GPIO			; Load base address
 	STR   	R0, [R1, #DOE31_0]	; Set output enable on loaded pins
 
@@ -309,34 +324,30 @@ InitGPIO:
 ;
 ;	BX	LR			;Return
 InitGPTs:
-	;GPT0 will be our 1ms timer
+	;GPT0 will be our 1ms one shot timer
 	MOV32	R1, GPT0					;Load base address
 	STREG   CFG_32x1, R1, CFG			;32 bit timer
 	STREG   TAMR_D_ONE_SHOT, R1, TAMR	;Enable one-shot mode countdown mode
 	STREG   TIMER32_1ms, R1, TAILR		;Set timer duration to 1ms
 	STREG   IMR_TA_TO, R1, IMR			;Enable timeout interrupt
 
-	;GPT1 will be our PWM timer
+	;GPT1 will be our 1us one shot timer (for write operation timing)
 	MOV32	R1, GPT1					;Load base address
-
-	STREG   CFG_16x2, R1, CFG			;16 bit timer
-	STREG   TAMR_PWM_IE, R1, TAMR		;Set PWM mode with interrupts enabled
-	STREG   PRESC16_20ms, R1, TAPR		;Manual says to set prescaling
-	STREG   PREGPTMATCH_1p5ms, R1, TAPMR	;here for some reason
-	STREG   TIMER16_20ms, R1, TAILR		;Set timer duration to 20 ms
-	STREG   GPTMATCH_1p5ms, R1, TAMATCHR	;Set timer match duration to 1.5 ms
-	STREG   IMR_TA_CAPEV, R1, IMR		;Enable capture mode event interrupt
-	STREG   GPT_PWM_TO, R1, ANDCCP ;Handle PWM assertion bug
-
-    ; GPT2 will be our 1us tCycle timer (for write operation timing)
-    MOV32   R1, GPT2                    ; Load base address
-    STREG   CFG_16x2, R1, CFG           ; 32 bit timer
+    STREG   CFG_32x1, R1, CFG           ; 32 bit timer
     STREG   TAMR_D_ONE_SHOT, R1, TAMR   ; Enable timer one-shot countdown mode
     STREG   TIMER32_1us, R1, TAILR      ; Set timer duration to 1us
     STREG   IMR_TA_TO, R1, IMR          ; Enable timeout interrupt
 
+    ; GPT2 will be our 1ms periodic timer
+    MOV32   R1, GPT2                    ; Load base address
+    STREG   CFG_32x1, R1, CFG           ; 32 bit timer
+    STREG   TAMR_D_PERIODIC, R1, TAMR   ; Enable timer periodic countdown mode
+    STREG   TIMER32_1ms, R1, TAILR      ; Set timer duration to 1ms
+    STREG   IMR_TA_TO, R1, IMR          ; Enable timeout interrupt
+    STREG   CTL_TA_STALL, R1, CTL       ; Enable timer with debug stall
+
 	MOV32	R1, SCS						;Load base address
-	STREG   EN_INT_T1A, R1, NVIC_ISER0	;Interrupt enable
+	STREG   EN_INT_T2A, R1, NVIC_ISER0	;Interrupt enable
 
 	BX	LR								;Return
 
@@ -372,13 +383,71 @@ InitGPTs:
 ;	angle = 0DEGREES
 ; 	BX    LR             ; Return
 InitVariables:
-;	MOVA    R1, angle		;Set starting angle at 0
-;	MOV32   R0, ZERO_START
-;	STR     R0, [R1]
-;
-;	MOVA    R1, pwm_stat		;Set PWM status READY
-;	MOV32   R0, READY
-;	STR     R0, [R1]
+
+;FIRST INIT ALL KEYPAD VARS
+    .global prev0
+    .global prev1
+    .global prev2
+    .global prev3
+
+    .global dbnceCntr0
+    .global dbnceCntr1
+    .global dbnceCntr2
+    .global dbnceCntr3
+
+    .global buffer
+    .global bIndex
+    .global dbnceFlag
+    .global keyValue
+
+    MOV32   R0, NOT_PRESSED ;load the not-pressed value
+
+    ; set previous values of all rows to start with the not-pressed value
+    MOVA    R1, prev0
+    STR     R0, [R1]
+    MOVA    R1, prev1
+    STR     R0, [R1]
+    MOVA    R1, prev2
+    STR     R0, [R1]
+    MOVA    R1, prev3
+    STR     R0, [R1]
+
+    MOV32   R0, DBNCE_CNTR_RESET    ;load the counter reset value
+
+    ; reset values of all row debounce counters
+    MOVA    R1, dbnceCntr0  ;reset row0 debounce counter
+    STR     R0, [R1]
+    MOVA    R1, dbnceCntr1  ;reset row0 debounce counter
+    STR     R0, [R1]
+    MOVA    R1, dbnceCntr2  ;reset row0 debounce counter
+    STR     R0, [R1]
+    MOVA    R1, dbnceCntr3  ;reset row0 debounce counter
+    STR     R0, [R1]
+
+    MOV32   R0, NOT_PRESSED ;load the not-pressed value
+    MOVA    R1, keyValue    ;set the initial key value to not-pressed
+    STR     R0, [R1]
+
+    MOVA    R1, dbnceFlag   ;set debounce flag to start in the reset state
+    MOV32   R0, DBNCE_FLAG_RESET
+    STR     R0, [R1]
+
+    MOVA    R1, bIndex  ;set starting buffer index to 0
+    MOV32   R0, ZERO_START
+    STR     R0, [R1]
+
+;NEXT INIT ALL LCD VARS
+	.global cRow
+	.global cCol
+
+    MOVA    R1, cRow               ; set starting cursor row index to 0
+    MOV32   R0, ZERO_START
+    STR     R0, [R1]
+
+    MOVA    R1, cCol               ; set starting cursor column index to 0
+    MOV32   R0, ZERO_START
+    STR     R0, [R1]
+
 	BX LR
 
 ; InitRegisters:
@@ -411,8 +480,8 @@ InitVariables:
 ;	ALL GPIO TURNED OFF
 ; BX    LR             ; Return
 InitRegisters:
-;	MOV32	R1, GPIO		;Load base address
-;	STREG   ALL_PINS, R1, DCLR31_0	;Clear all GPIO pins
+	MOV32	R1, GPIO		;Load base address
+    STREG   R0_TEST, R1, DOUT31_0   ;Start testing row 0
 
 	BX	LR
 
@@ -593,8 +662,9 @@ GPT0AConfig:            ;configure timer 0A as a down counter generating
         STREG   IMR_TA_TO, R1, IMR   ;enable timer A timeout ints
         STREG   TAMR_D_PERIODIC, R1, TAMR    ;set timer A mode
                                                 ;set 32-bit timer count
-        STREG   TIMER32_1ms, R1, TAILR
-;        STREG   (MS_PER_BLINK * CLK_PER_MS), R1, GPT_TAILR_OFF
+;        STREG   TIMER32_1ms, R1, TAILR
+        STREG   (MS_PER_BLINK * CLK_PER_MS), R1, TAILR
+;        STREG   (1000 * 48000), R1, GPT_TAILR_OFF
 
 
         BX      LR                              ;done so return

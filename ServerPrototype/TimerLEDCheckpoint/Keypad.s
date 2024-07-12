@@ -11,6 +11,7 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;                           Required Constant Files
+    .include "prototype.inc"      ; contains project specific macros
     .include "configPWR&CLK.inc"  ; contains power config constants
     .include "configGPIO.inc"     ; contains GPIO config constants
     .include "GPIO.inc"           ; contains GPIO control constants
@@ -22,6 +23,12 @@
 ;                           Required Functions
     .ref    Wait_1ms        ;   Wait 1 ms
 	.ref	Int2Ascii		;	Stores an integer's value into ascii (buffer)
+	.ref	PrepLCD			;	Prepares the LCD to be written to
+	.ref	Display			;	Writes a string to the LCD
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                           Required Tables
+    .ref    ButtonDataTable ;   Contains button press event string data
+    .ref    ButtonDataAddressingTable ; Addressing interface for ButtonDataTable
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;                           Required Variables
     .global TopOfStack  	;	Address of the top of the stack
@@ -29,8 +36,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;                               Table of Contents
 ;       Function Name   |   Purpose
-    .def    EnqueueEvent    ; Set a flag indicating that an event has occurred
-    .def    GPT0EventHandler; Debounce the keypad every interrupt cycle
+    .def    Debounce    ; Checks if the zero flag was set which detects a debounce
+
+    .def    EnqueueEvent; Set a flag indicating that an event has occurred
+    .def    DequeueEvent; Set a flag indicating that an event has occurred
+
+    .def    EnqueueCheck; Set a flag indicating that an event has occurred
+    .def    DequeueCheck; Set a flag indicating that an event has occurred
+
+    .def    GPT2AEventHandler; Debounce the keypad every interrupt cycle
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Revision History:   02/04/24 George Ore   Created format
 ;                     05/30/24 George Ore   Ported to EE110a HW3
@@ -42,6 +56,79 @@
 ;*******************************************************************************
 .text                           ; program memory space start
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Debounce:
+; Description:      This program configures the CC2652R LaunchPad to connect to
+;                   a 4x4 keypad on the Glen George TM wire wrap board. When a
+;                   button is pressed, the program registers the input's keyID
+;                   inside a data memory buffer.
+;
+; Operation:        The program constantly checks a debounce flag for "permission"
+;                   to store the identifier of the corresponding debounced button
+;                   in a data memory buffer.
+;
+; Arguments:        NA
+; Return Values:    NA
+; Local Variables:  eventID (passed into EnqueueEvent to be placed in the buffer)
+; Shared Variables: bOffset, dbnceCntr, dbnceFlag, keyValue, prev0-3
+; Global Variables: ResetISR (required)
+; Input:            Keypad columns (DIN31_0 register bits 3-7)
+; Output:           Keypad rows (DOUT31_0 register bits 0-3)
+; Error Handling:   NA
+; Registers Changed: flags, R0, R1, R2,
+; Stack Depth:       0 words
+; Algorithms:        NA
+; Data Structures:   NA
+; Known Bugs:        NA
+; Limitations:       Does not support multiple simultaneous keypresses
+; Revision History:
+;   11/06/23  George Ore      initial version
+;   11/07/23  George Ore      finished initial version
+;   12/04/23  George Ore      fixed bugs, start testing
+;   12/05/23  George Ore      finished
+;
+; Pseudo Code:
+;   includeconstants()
+;   includemacros()
+;   global ResetISR
+;   initstack()
+;   initpower()
+;   initclocks()
+;   movevectortable()
+;   installGPT0handler()
+;   initGPT0()
+;   initGPIO()
+;   keyValue = NOT_PRESSED
+;   prev0, prev1, prev2, prev3 = NOT_PRESSED
+;   dbnceFlag = DBNCE_FLAG_RESET
+;   dbnceCntr = DBNCE_CNTR_RESET
+;   bIndex = ZERO_START
+;   DOUT31-0 = ALL_OFF
+;   while(1)
+;       if dbnceFlag == DBNCE_FLAG_SET:
+;           eventID = KeypadID & keyValue
+;           EnqueueEvent(eventID)
+;           dbnceFlag = DBNCE_FLAG_RESET
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+Debounce:   ;Loop goes on forever
+	PUSH	{R0, R1}	;Push registers
+
+    MOVA    R1, dbnceFlag   ;Load dbnceFlag address into R1
+
+    CPSID   I   ;Disable interrupts to avoid critical code
+    LDR     R0, [R1]    ;Load dbnceFlag data onto R0
+
+    MOV32   R1, DBNCE_FLAG_SET  ;Load R1 with the event pressed condition
+    CMP     R0, R1
+    BNE     SkipEvent       ;If dbnceFlag != SET, skip EnqueueEvent
+    BL      EnqueueEvent    ;If debounce flag == set, enqueue event
+
+SkipEvent: ;This label is only used in the != case
+    CPSIE   I   ;Enable interrupts again
+
+EndDebounce:
+    POP		{R0, R1}	;Pop registers
+    BX LR  ;Return for now but this will run forever
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; EnqueueEvent:
 ; Description: This procedure places an inputted eventID into the keybuffer
@@ -75,33 +162,22 @@ EnqueueEvent:
 
     CPSID   I   ;Disable interrupts to avoid critical code
 
-    LDR     R0, [R1]    ;Load R0 with the key value
-    LDR     R1, [R2]    ;Load R1 with the buffer index value
+    LDRB    R0, [R1]    ;Load R0 with the key value
+    LDRB    R1, [R2]    ;Load R1 with the buffer index value
 
     ADD     R1, #ONE    ;Increment the buffer index value
-    STR     R1, [R2]    ;Save the buffer index
+    STRB    R1, [R2]    ;Save the buffer index
 
     SUB     R1, #ONE    ;Restore the buffer index value
 
-    ; Use buffer index value as a counter for calculating the desired buffer
-    ; address
-    MOV32   R2, COUNT_DONE    ;Load calc-finished condition
+; Use buffer index value to traverse the buffer into the next empty buffer address
+    ADD		R3, R3, R1
 
-BAddressLoop:
-    CMP     R1, R2     ;Test index counter
-    BEQ     Enqueue    ;Start enqueue if done
-    ; If not...
-    ADD     R3, #1     ;Add [] for every value of index
-    SUB     R1, #ONE   ;Decrement index counter
-
-    B       BAddressLoop   ;Keep looping until done
-
-Enqueue:
-    STR     R0, [R3]    ;Put keyValue in the calculated buffer address
+    STRB     R0, [R3]    ;Put keyValue in the calculated buffer address
 
     MOVA    R0, dbnceFlag    ;Reset status of dbnceFlag
     MOV32   R1, DBNCE_FLAG_RESET
-    STR     R1, [R0]
+    STRB    R1, [R0]
 
     CPSIE   I   ;Enable interrupts again
 
@@ -109,7 +185,262 @@ Enqueue:
     BX      LR  ;Return
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; GPT0EventHandler:
+; DequeueEvent:
+; Description: 	This procedure takes an eventID from the keybuffer and uses it
+;				to display the corresponding items on the display
+; Operation: Fetches dbnceFlag state and if set, it fetches the key value and
+;            converts it into an EventID before passing it to EnqueueEvent
+; Arguments: None.
+; Return Values: None.
+; Local Variables: None.
+; Shared Variables: buffer, bIndex
+; Global Variables: None.
+; Input: None.
+; Output: None.
+; Error Handling: None.
+; Registers Changed: R0, R1, R2, R3
+; Stack Depth: 1 word
+; Algorithms: None.
+; Data Structures: None.
+; Revision History: 12/4/23 George Ore added documentation
+; Pseudo Code:
+;	string str_to_display = buffer(0)
+;   Display(str_to_display)
+;	for (int i = 1; i < bIndex; i++) {
+;		buffer(i-1) = buffer(i);
+;	}
+;   bIndex--
+;   return
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DequeueEvent:
+    PUSH    {R0, R1, R2, R3}    ;Push registers
+
+    MOVA    R1, buffer	;Fetch the buffer address
+    LDRB	R0, [R1]	;Load the first byte in the buffer
+
+	;Display the string corresponding to that byte
+	;Possible codes:
+	;	77	(0, 0)	-	Option 1
+	;	B7	(1, 0)	-	Option 2
+	;	D7	(2, 0)	-	Option 3
+	;	E7	(3, 0)	-	Option 4
+	;	7B	(0, 1)	-	Option 5
+	;	BB	(1, 1)	-	Option 6
+	;	DB	(2, 1)	-	Option 7
+	;	EB	(3, 1)	-	Option 8
+	;	7D	(0, 2)	-	Option 9
+	;	BD	(1, 2)	-	Option 10
+	;	DD	(2, 2)	-	Option 11
+	;	ED	(3, 2)	-	Option 12
+	;	7E	(0, 3)	-	Option 13
+	;	BE	(1, 3)	-	Option 14
+	;	DE	(2, 3)	-	Option 15
+	;	EE	(3, 3)	-	Option 16
+	;Table matching code
+	;Table will be a 2D array indexed by the bit position of each option
+	MVN	R0, R0	;Perform a logical NOT to convert the key byte code into two one-hot nibble codes
+	AND	R1, R0, #HNIBBLE	;Fetch the row indexing variable from the upper nibble
+	AND	R0, R0, #LNIBBLE	;Fetch the row indexing variable from the lower nibble
+
+	;Calculate the correct menu offset based on the row and column positions in R0 and R1
+	MOV32	R2, ZERO_START
+DequeueRowOffsetLoop:
+	LSR		R0, #SHIFT_BIT	;Logical shift the row one-hot bit right one bit
+
+;If it is gone, then the correct row offset has been added to R2
+	CBZ		R0, DequeueColumnOffsetPrep	;Now the column offset must be handled
+
+;If it is not gone, then add some row offset to R2 and repeat the loop
+	ADD		R2, R2, #ROW_4x4_OFFSET
+	B	DequeueRowOffsetLoop
+
+DequeueColumnOffsetPrep:
+;Logical shift the column one-hot bit right to align it to the lower nibble
+	LSR		R1, #SHIFT_NIBBLE
+
+DequeueColumnOffsetLoop:
+	LSR		R1, #SHIFT_BIT	;Logical shift the column one-hot bit right one bit
+
+;If it is gone, then the correct column offset has been added to R2
+	CBZ		R1, DisplayDequeuedData	;Display data at the correct offset
+
+;If it is not gone, then add some column offset to R2 and repeat the loop
+	ADD		R2, R2, #COLUMN_4x4_OFFSET
+	B		DequeueColumnOffsetLoop
+
+DisplayDequeuedData:
+;Use the calculated offset to index the button data addressing table
+	MOVA	R3, ButtonDataAddressingTable
+	ADD		R3, R2	;R3 contains the ADDRESS for the OFFSET for the BUTTON DATA TABLE
+
+;Now get the correct offset for the intended button string data in R3
+	LDR		R3, [R3]	;R3 contains the OFFSET for the BUTTON DATA TABLE
+
+	MOVA	R2, ButtonDataTable		; Fetch the button data table address
+	ADD		R2, R3	; Add the base and the offset for the correct string data in R2
+
+    MOV32   R0, 0    ; Set the column and row of the data to (0, 0)
+    MOV32   R1, 0
+
+	PUSH	{LR}	;Prep LCD to be written on
+	BL	PrepLCD
+	POP		{LR}
+
+	PUSH	{LR}	;Write the button's data
+    BL	Display
+	POP		{LR}
+
+;AT THIS POINT, THE DEQUEUE ACTION HAS BEEN MADE BUT THE STATE STILL NEEDS UPDATING
+    MOVA    R1, bIndex	;Fetch state variable addresses to be updated
+
+    CPSID   I   ;Disable interrupts to avoid critical code
+
+    LDR     R0, [R1]    ;Load R0 with the buffer index value
+
+;If the buffer index is 0, then nothing needs to be updated
+	CBZ		R0, EndDequeueEvent
+
+;If not, then there is buffer data to update
+    MOVA    R2, buffer
+
+	ADD		R3, R4, R1	;Add the buffer index value to get the next empty address in the buffer
+;*** This is saved in R3 and is the end condition for the buffer update loop
+;	R0, R1 - Swapping temp registers
+;	R2 - Buffer address pointer (will be incremented)
+;	R3 - End of the buffer address
+DequeueBufferLoop:
+    LDRB    R0, [R2], #1    ;Load R0 and R1 with the unmodified data values
+    LDRB    R1, [R2], #1    ;for the first two bytes of data in the buffer
+
+	EOR		R0, R1	; Swap the two values with the XOR swap technique
+	EOR		R1, R0
+	EOR		R0, R1
+
+	STRB    R0, [R2, #-2], #1	; Save the swapped values
+    STRB    R1, [R2]
+
+	CMP		R2, R3	;Check if the address has reached the end
+	BEQ		DequeueUpdatebIndex	;Update the bIndex if so
+
+    B	DequeueBufferLoop	;Keep looping until done
+
+DequeueUpdatebIndex:
+    MOVA    R1, bIndex	;Fetch bIndex
+    LDR     R0, [R1]
+    SUB		R0, R0, #1	;Decrement
+    STR		R0, [R1]		;And save
+
+	;B	EndDequeueEvent
+
+EndDequeueEvent:
+    CPSIE   I   ;Enable interrupts again
+
+    POP     {R0, R1, R2, R3}    ;Pop registers
+    BX      LR  ;Return
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EnqueueCheck:
+; Description: This procedure places an inputted eventID into the keybuffer
+; Operation: Fetches dbnceFlag state and if set, it fetches the key value and
+;            converts it into an EventID before passing it to EnqueueEvent
+; Arguments: R0 - eventID
+; Return Values: None, instead writes to buffer
+; Local Variables: None
+; Shared Variables: buffer, bIndex
+; Global Variables: None
+; Input: None
+; Output: None
+; Error Handling: None
+; Registers Changed: R0, R1, R2, R3
+; Stack Depth: 1 word
+; Algorithms: None
+; Data Structures: None
+; Revision History: 12/4/23 George Ore added documentation
+; Pseudo Code:
+;   buffer(bIndex) = keyValue
+;   bIndex++
+;   return
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+EnqueueCheck:
+    PUSH    {R1}    ;Push registers
+
+    MOVA    R1, dbnceFlag   ;Load dbnceFlag address into R1
+
+    CPSID   I   ;Disable interrupts to avoid critical code
+    LDR     R0, [R1]    ;Load dbnceFlag data onto R0
+
+    MOV32   R1, DBNCE_FLAG_SET  ;Load R1 with the event pressed condition
+    CMP     R0, R1
+    BNE     FalseEvent	;If dbnceFlag != SET, return false
+    ;B      TrueEvent   ;If debounce flag == set, return true
+
+TrueEvent:
+	MOV32	R0, TRUE
+	B	EndEnqueueCheck
+
+FalseEvent:
+	MOV32	R0, FALSE
+;	B	EndEnqueueCheck
+
+EndEnqueueCheck:
+    CPSIE   I   ;Enable interrupts again
+    POP     {R1}    ;Pop registers
+    BX      LR  ;Return
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; DequeueCheck:
+; Description: 	This procedure takes an eventID from the keybuffer and uses it
+;				to display the corresponding items on the display
+; Operation: Fetches dbnceFlag state and if set, it fetches the key value and
+;            converts it into an EventID before passing it to EnqueueEvent
+; Arguments: None.
+; Return Values: None.
+; Local Variables: None.
+; Shared Variables: buffer, bIndex
+; Global Variables: None.
+; Input: None.
+; Output: None.
+; Error Handling: None.
+; Registers Changed: R0, R1, R2, R3
+; Stack Depth: 1 word
+; Algorithms: None.
+; Data Structures: None.
+; Revision History: 12/4/23 George Ore added documentation
+; Pseudo Code:
+;	string str_to_display = buffer(0)
+;   Display(str_to_display)
+;	for (int i = 1; i < bIndex; i++) {
+;		buffer(i-1) = buffer(i);
+;	}
+;   bIndex--
+;   return
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DequeueCheck:
+    PUSH    {R0, R1, R2, R3}    ;Push registers
+
+    MOVA    R1, bIndex	;Fetch the buffer Index value
+    LDRB	R0, [R1]
+
+	CBNZ	R0, FalseDequeue
+	;CBZ	R0, TrueDequeue
+TrueDequeue:
+	MOV32	R0, TRUE
+	B	EndDequeueCheck
+
+FalseDequeue:
+	MOV32	R0, FALSE
+;	B	EndDequeueCheck
+
+EndDequeueCheck:
+    CPSIE   I   ;Enable interrupts again
+
+    POP     {R0, R1, R2, R3}    ;Pop registers
+    BX      LR  ;Return
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; GPT2AEventHandler:
 ; Description: This procedure is called through the GPIO vector table interrupt.
 ;              It debounces keypresses and updates the dbnceFlag and keyValue
 ;              variables.
@@ -171,7 +502,7 @@ Enqueue:
 ;               store inputstate in prevstate
 ;               return
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-GPT0EventHandler:
+GPT2AEventHandler:
     PUSH    {R4, R5, R6}        ;save the registers (R0-R3 are autosaved)
 
 GetCurrentRowInput:
@@ -319,10 +650,52 @@ SetKeyVars:
     STR     R0, [R5]
 
 EndDbnceTest:
-    MOV32   R1, GPT0            ;Load base into R1
+    MOV32   R1, GPT2            ;Load base into R1
     STREG   IRQ_TATO, R1, ICLR  ;clear timer A timeout interrupt
     POP     {R4, R5, R6}        ;restore registers
     BX      LR                  ;return from interrupt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; EnqueueCheck:
+; Description: This procedure places an inputted eventID into the keybuffer
+; Operation: Fetches dbnceFlag state and if set, it fetches the key value and
+;            converts it into an EventID before passing it to EnqueueEvent
+; Arguments: R0 - eventID
+; Return Values: None, instead writes to buffer
+; Local Variables: None
+; Shared Variables: buffer, bIndex
+; Global Variables: None
+; Input: None
+; Output: None
+; Error Handling: None
+; Registers Changed: R0, R1, R2, R3
+; Stack Depth: 1 word
+; Algorithms: None
+; Data Structures: None
+; Revision History: 07/08/24 George Ore added documentation
+; Pseudo Code:
+;   buffer(bIndex) = keyValue
+;   bIndex++
+;   return
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CHECK TO ENQUEUE THE EVENT
+;EnqueueCheck:   ;Loop goes on forever
+;    MOVA    R1, dbnceFlag   ;Load dbnceFlag address into R1
+
+;    CPSID   I   ;Disable interrupts to avoid critical code
+;    LDR     R0, [R1]    ;Load dbnceFlag data onto R0
+
+;    MOV32   R1, DBNCE_FLAG_SET  ;Load R1 with the event pressed condition
+;    CMP     R0, R1
+;    BNE     SkipEvent       ;If dbnceFlag != SET, skip EnqueueEvent
+;    BL      EnqueueEvent    ;If debounce flag == set, enqueue event
+
+;SkipEvent: ;This label is only used in the != case
+;    CPSIE   I   ;Enable interrupts again
+
+;	BX		LR	;RETURN!!
+
+;    B       EnqueueCheck        ;Repeat forever
 
 
 ;*******************************************************************************

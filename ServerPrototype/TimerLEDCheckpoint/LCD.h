@@ -39,6 +39,8 @@ void  Display();        /* Display a string to the LCD */
 void  DisplayChar();    /* Display a char to the LCD */
 /*** Prep LCD has a modifiable character string and cursor parameters ***/
 void  PrepLCD();        /* Prep the LCD to display a number */
+void  InitLCD();        /* Initializes the LCD */
+
 
 //Internal Helper Functions
 void  LowestLevelWrite();   /* Handles an LCD write cycle */

@@ -21,7 +21,7 @@
     #define  __KEYPAD_H__
 
 /* library include files */
-    /* none */
+#include <stdbool.h>
 
 /* local include files */
     /* none */
@@ -33,7 +33,12 @@
     /* none */
 
 /* function prototypes */
-void  EnqueueEvent();       /* Set a flag indicating that an event has occurred */
-void  GPT0EventHandler();   /* Debounce the keypad every interrupt cycle */
+void  Debounce();       /* Checks if the zero flag was set which detects a debounce */
+void  EnqueueEvent();       /* Enqueue and event */
+void  DequeueEvent();       /* Dequeue an event */
+void  GPT2AEventHandler();  /* Debounce the keypad every interrupt cycle */
+bool  EnqueueCheck();       /* Set a flag indicating that an event has occurred */
+bool  DequeueCheck();       /* Handle an event if it is in the buffer */
+
 
 #endif

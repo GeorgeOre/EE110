@@ -34,6 +34,7 @@
     .def    Display     ;   Display a string to the LCD
     .def    DisplayChar ;   Display a char to the LCD
     .def    PrepLCD 	;   Prep the LCD to display a number
+	.def	InitLCD		;	Initalize LCD
 ;*** ^^^^ Prep LCD has a modifiable character string and cursor parameters ***
 
 ;Internal Helper Functions
@@ -408,29 +409,152 @@ PrepLCD:
 
 ; Write the preamble to the LCD
 
-    MOVA    R2, SentenceStringTable ; Start at the beginning of sentence data table
-    MOVA    R3, SStringAddressingTable ; and also the sentence addressing table
-
-    LDRB    R0, [R3], #NEXT_BYTE    ; Get the next row index from table and post increment address
-    LDRB    R1, [R3], #NEXT_BYTE    ; Get the next column index from table and post increment address
-    LDRB    R4, [R3], #NEXT_BYTE    ; Get the address offset to the next word
-
-	PUSH {LR}
-    BL      Display                 ; Call the function
-	POP {LR}
+;NO PREAMBLE THIS TIME
+;    MOVA    R2, SentenceStringTable ; Start at the beginning of sentence data table
+;    MOVA    R3, SStringAddressingTable ; and also the sentence addressing table
+;
+;    LDRB    R0, [R3], #NEXT_BYTE    ; Get the next row index from table and post increment address
+;    LDRB    R1, [R3], #NEXT_BYTE    ; Get the next column index from table and post increment address
+;    LDRB    R4, [R3], #NEXT_BYTE    ; Get the address offset to the next word
+;
+;	PUSH {LR}
+;    BL      Display                 ; Call the function
+;	POP {LR}
 
 EndPrepLCD:
 	POP {R0, R1, R2, R3, R4}
 	BX LR
 
 ;PREAMBLE FOR PREPLCD vvvvvvvvvvv
-    .align 1
-SentenceStringTable:
-    .byte       'S', 'T', 'E', 'P', 'P', 'E', 'R', 'P', 'O', 'S',  ':', STRING_END
+;    .align 1
+;SentenceStringTable:
+;    .byte       'S', 'T', 'E', 'P', 'P', 'E', 'R', 'P', 'O', 'S',  ':', STRING_END
 
-    .align 1
-SStringAddressingTable:    ; Row Col Offset
-    .byte                  0,  0,  0xB
+;    .align 1
+;SStringAddressingTable:    ; Row Col Offset
+;    .byte                  0,  0,  0xB
+
+; InitLCD:
+;
+; Description:	Initalizes the LCD.
+;
+; Operation:    Sends SPI commands to initalize the LCD. Has
+;				delays as specified by the datasheet.
+;
+; Arguments:         None.
+; Return Values:     None.
+;
+; Local Variables:   None.
+; Shared Variables:  None.
+; Global Variables:  None.
+;
+; Input:             None
+; Output:            None
+;
+; Error Handling:    None.
+;
+; Registers Changed: R0, R1, R2, R3, R4
+; Stack Depth:       1 word
+;
+; Algorithms:        None.
+; Data Structures:   None.
+;
+; Revision History:  12/6/24	George Ore	 created
+;
+; Pseudo Code
+;
+;	Function commands and delay font and lines
+;
+;	Turn LCD off
+;	Clear LCD command
+;	Entry mode set command
+;	Write command
+;
+;	return
+InitLCD:    ; The following is LCD function set/startup
+    MOV32   R0, WAIT30             ; Wait 30 ms (15 ms min)
+    PUSH {LR}
+    BL      Wait_1ms
+	POP {LR}
+;    PUSH {LR}
+;    BL      WaitLCDBusy
+;	POP {LR}
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    MOV32   R0, WAIT8              ; Wait 8 ms (4.1 ms min)
+    PUSH {LR}
+    BL      Wait_1ms
+	POP {LR}
+
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    MOV32   R0, WAIT1              ; Wait 1 ms (100 us min)
+    PUSH {LR}
+    BL      Wait_1ms
+	POP {LR}
+
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+; From here we need to wait until the busy flag is reset before executing the next command
+    PUSH {LR}
+    BL      WaitLCDBusy
+   	POP {LR}
+    MOV32   R0, FSET_2LINES_DFONT  ; Write function set command
+    MOV32   R1, FSET_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    PUSH {LR}
+    BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, LCD_OFF            ; Write display off command
+    MOV32   R1, LCD_OFF_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    PUSH {LR}
+    BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, CLR_LCD            ; Write clear display command
+    MOV32   R1, CLR_LCD_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    PUSH {LR}
+    BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, FWD_INC            ; Write entry mode set command
+    MOV32   R1, ENTRY_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+    PUSH {LR}
+    BL      WaitLCDBusy
+	POP {LR}
+    MOV32   R0, CUR_BLINK          ; Write display on command
+    MOV32   R1, LCD_ON_RS
+    PUSH {LR}
+    BL      LowestLevelWrite
+	POP {LR}
+
+	BX	LR	;Return
+
 
 
 ; DisplayStepper:
@@ -540,8 +664,8 @@ LowestLevelWrite:    ; R0 = 8 bit data busdata; R1 = RS value
     MOV32   R3, EMPTY   ; We will store RS and databus values into R3 *MAYBE USE MOV
     ADD     R3, R0, R1
 
-    MOV32   R1, GPIO    ; Load GPIO and GPT2 (tCycle timer) base addresses
-    MOV32   R2, GPT0
+    MOV32   R1, GPIO    ; Load GPIO and GPT1 (tCycle timer) base addresses
+    MOV32   R2, GPT1
     STR     R3, [R1, #DSET31_0] ; Write RS and databus onto LCD
 
 ; HandleSetupTime:
@@ -562,7 +686,7 @@ DataSetupDone:
 
     STREG   CTL_TB_AB_STALL, R2, CTL   ; Enable 1us timer with debug stall
 
-    MOV32   R2, GPT0		; Make sure that R2 still has the correct address
+    MOV32   R2, GPT1		; Make sure that R2 still has the correct address
 ;    MOV32   R0, 0x30    ; Setup a counter
 tCycle_Loop1:               ; Wait the enable hold time
     ; Wait 0x30 clock cycle time time
@@ -571,7 +695,7 @@ tCycle_Loop1:               ; Wait the enable hold time
   ;  B       tCycle_Loop1    ; Keep looping if not
 
     LDR     R0, [R2, #MIS]  ; Get the 1us timer value
-    MOV32   R2, GPT0		; Make sure that R2 still has the correct address
+    MOV32   R2, GPT1		; Make sure that R2 still has the correct address
     CMP     R0, R3
     BNE     tCycle_Loop1    ; If LCD Enable hold time hasn't passed, wait
 ;   BEQ     ResetLCDEnable ; if it passed, reset LCD Enable pin
@@ -594,7 +718,7 @@ tCycle_Loop2:               ; Wait until tCycle is done
 
 
     LDR     R0, [R2, #MIS]  ; Get the 1us timer value
-    MOV32   R2, GPT0		; Make sure that R2 still has the correct address
+    MOV32   R2, GPT1		; Make sure that R2 still has the correct address
     CMP     R0, R3
     BNE     tCycle_Loop2    ; If LCD Enable hold time hasn't passed, wait
 ;   BEQ     HandleHoldTime ; if it passed, reset LCD Enable pin
@@ -658,8 +782,8 @@ EndWrite:
 LowestLevelRead:    ; R0 = 8 bit data busdata; R1 = RS value
     PUSH    {R1, R2, R3}    ; Push registers
 ; ASSUMES THAT IT IS IN READ MODE
-    MOV32   R1, GPIO    ; Load GPIO and GPT2 (tCycle timer) base addresses
-    MOV32   R2, GPT0
+    MOV32   R1, GPIO    ; Load GPIO and GPT1 (tCycle timer) base addresses
+    MOV32   R2, GPT1
 
 ; HandleSetupTimeR:
     ; Wait 280 ns setup time (must be at least 140 ns)
@@ -678,25 +802,25 @@ DataSetupDoneR:
     MOV32   R3, IRQ_TBTO ; Load timeout interrupt condition
 ;    MOV32   R3, CTL_TB_AB_STALL ; Load timeout interrupt condition
 
-    MOV32   R2, GPT0
+    MOV32   R2, GPT1
     STREG   CTL_TB_AB_STALL, R2, CTL   ; Enable 1us timer with debug stall
 
 tCycle_Loop1R:               ; Wait the enable hold time
     LDR     R0, [R2, #MIS]  ; Get the 1us timer interrupt status
-    MOV32   R2, GPT0		; Make sure that R2 still has the correct address
+    MOV32   R2, GPT1		; Make sure that R2 still has the correct address
     CMP     R0, R3
     BNE     tCycle_Loop1R   ; If LCD Enable hold time hasn't passed, wait
 ;   BEQ     ResetLCDEnableR ; if it passed, reset LCD Enable pin
 
 ResetLCDEnableR:
-    MOV32   R2, GPT0
+    MOV32   R2, GPT1
     STREG   IRQ_TBTO, R2, ICLR    ; Clear timer A timeout interrupt
 
     LDR     R0, [R1, #DIN31_0]         ; Fetch read data in R0
     PUSH    {R0}                       ; Store data in stack
     STREG   LCD_ENABLE, R1, DCLR31_0   ; Reset LCD enable pin
 
-    MOV32   R2, GPT0
+    MOV32   R2, GPT1
     STREG   CTL_TB_AB_STALL, R2, CTL   ; Enable 1us timer with debug stall
 
     MOV32   R3, IRQ_TBTO    ; 1us timer timeout condition
@@ -704,7 +828,7 @@ ResetLCDEnableR:
 
 tCycle_Loop2R:               ; Wait until tCycle is done
     LDR     R0, [R2, #MIS]  ; Get the 1us timer value
-    MOV32   R2, GPT0		; Make sure that R2 still has the correct address
+    MOV32   R2, GPT1		; Make sure that R2 still has the correct address
     CMP     R0, R3
 
     BNE     tCycle_Loop2R   ; If LCD Enable hold time hasn't passed, wait
@@ -805,5 +929,27 @@ LCDNotBusy:
 EndWaitLCDBusy:
 	POP     {R0, R1}    ; Pop registers
 	BX      LR          ; Return
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;                                                                              ;
+;                            Data Section                                      ;
+;                                                                              ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    .data
+
+	.global cRow
+	.global cCol
+
+;;;;;; Variable Declaration ;;;;;;
+	.align 4
+charbuffer: .space 12       ; Buffer to store ASCII characters (including negative sign and null terminator)
+
+    .align 4
+cRow:   .space 1    ; cRow holds the index of the cursor
+
+    .align 4
+cCol:   .space 1    ; cCol holds the index of the column
+
 
 .end

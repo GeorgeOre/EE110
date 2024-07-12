@@ -65,6 +65,12 @@ DBNCE_CNTR_RESET   .EQU    20  ;Debounce counter lasts 20ms
 ;Buffer Constants
 BOFFSET             .EQU    8     ;offset between every buffer address value
 
+;;;;;;4x4 Keypad Constants;;;;;;
+
+;Grid indexing constants
+ROW_4x4_OFFSET      .EQU    16  ;The addressing is in words a row is 4 words
+COLUMN_4x4_OFFSET   .EQU    4   ;The addressing is in words a column is 1 word
+
 ;;;;;;Memory Register Values;;;;;;
 
 ;   GPIO Output enable Register DOE31_0

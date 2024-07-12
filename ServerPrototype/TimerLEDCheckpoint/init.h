@@ -40,8 +40,6 @@ void  InitGPIO();               /* initialize the I/O pins */
 void  InitGPTs();               /* initialize the timers (just GPT0A) */
 void  InitVariables();          /* initialize the variable values */
 void  InitRegisters();          /* initialize the state of relevant registers */
-void  MoveVecTable();           /* install the custom vector table */
-void  InstallGPTHandlers();     /* install all necessary interrupt handlers */
 
 void  InitGPT0();   //GLEN CODE
 

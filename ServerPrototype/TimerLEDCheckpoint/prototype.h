@@ -32,12 +32,24 @@
 #define  GPT0A_PRIORITY     3           /* priority for the interrupt */
 #define  GPT0A_EX_NUM       31          /* GPT0A is exception number 31 */
 
+#define  GPT2A_PRIORITY     3           /* priority for the interrupt */
+#define  GPT2A_EX_NUM       35          /* GPT0A is exception number 31 */
+
+
 /* constants */
+#define THREADSTACKSIZE 1024    /* Stack size in bytes */
 
 #define  LED_TASK_STACK_SIZE            400     /* size of stack for LED tasks */
+#define  QUEUE_TASK_STACK_SIZE          400     /* size of stack for queue tasks */
+#define  KEYPAD_LCD_TASK_STACK_SIZE     400     /* size of stack for the keypad LCD tasks */
+
 
 #define  RED_LED_TASK_PRIORITY          3       /* priority of red LED task */
 #define  GREEN_LED_TASK_PRIORITY        1       /* run green LED task at low priority */
+#define  ENQUEUE_TASK_PRIORITY          3       /* priority of enqueueing task */
+#define  DEQUEUE_TASK_PRIORITY          1       /* run dequeueing task at low priority */
+#define  KEYPAD_LCD_TASK_PRIORITY        1       /* run keypad-LCD task at low priority */
+
 
 /* mask for all event flags */
 #define  ALL_EVENTS                     0xFFFFFFFF
@@ -55,8 +67,12 @@
 
 
 /* function declarations */
+void *mainThread(void *arg0);
+
 void  GreenLEDTaskCreate(void);         /* create the green LED task */
 void  RedLEDTaskCreate(void);           /* create the red LED task */
-
+void  EnqueueTaskCreate(void);          /* create the enqueue task */
+void  DequeueTaskCreate(void);          /* create the dequeue task */
+void  KeypadLCDTaskCreate(void);        /* create the keypad LCD task */
 
 #endif
