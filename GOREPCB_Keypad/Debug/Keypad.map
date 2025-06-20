@@ -1,0 +1,214 @@
+******************************************************************************
+                  TI ARM Linker PC v20.2.7                     
+******************************************************************************
+>> Linked Mon Sep 30 14:17:59 2024
+
+OUTPUT FILE NAME:   <Keypad.out>
+ENTRY POINT SYMBOL: "ResetISR"  address: 000002e1
+
+
+MEMORY CONFIGURATION
+
+         name            origin    length      used     unused   attr    fill
+----------------------  --------  ---------  --------  --------  ----  --------
+  FLASH                 00000000   00058000  0000056e  00057a92  R  X
+  GPRAM                 11000000   00002000  00000000  00002000  RW X
+  SRAM                  20000000   00014000  00000428  00013bd8  RW X
+
+
+SEGMENT ALLOCATION MAP
+
+run origin  load origin   length   init length attrs members
+----------  ----------- ---------- ----------- ----- -------
+00000000    00000000    00000536   00000536    r-x
+  00000000    00000000    00000536   00000536    r-x .text
+00000538    00000538    00000008   00000008    rw-
+  00000538    00000538    00000008   00000008    rw- .args
+00000540    00000540    00000030   00000030    r--
+  00000540    00000540    00000030   00000030    r-- .cinit
+20000000    20000000    00000328   00000000    rw-
+  20000000    20000000    00000328   00000000    rw- .data
+20013f00    20013f00    00000100   00000000    rw-
+  20013f00    20013f00    00000100   00000000    rw- .stack
+
+
+SECTION ALLOCATION MAP
+
+ output                                  attributes/
+section   page    origin      length       input sections
+--------  ----  ----------  ----------   ----------------
+.text      0    00000000    00000536     
+                  00000000    000001ae     eventhandler.obj (.text)
+                  000001ae    00000132     init.obj (.text)
+                  000002e0    000000f6     main.obj (.text)
+                  000003d6    0000009c     rtsv7M4_T_le_v4SPD16_eabi.lib : memcpy_t2.asm.obj (.text)
+                  00000472    00000068                                   : copy_decompress_lzss.c.obj (.text:decompress:lzss:__TI_decompress_lzss)
+                  000004da    0000004e     utility.obj (.text)
+                  00000528    0000000e     rtsv7M4_T_le_v4SPD16_eabi.lib : copy_decompress_none.c.obj (.text:decompress:none:__TI_decompress_none)
+
+.binit     0    00000000    00000000     
+
+.cinit     0    00000540    00000030     
+                  00000540    0000001f     (.cinit..data.load) [load image, compression = lzss]
+                  0000055f    00000001     --HOLE-- [fill = 0]
+                  00000560    00000008     (__TI_handler_table)
+                  00000568    00000008     (__TI_cinit_table)
+
+.init_array 
+*          0    00000000    00000000     UNINITIALIZED
+
+.data      0    20000000    00000328     UNINITIALIZED
+                  20000000    00000328     main.obj (.data)
+
+.stack     0    20013f00    00000100     UNINITIALIZED
+                  20013f00    00000004     rtsv7M4_T_le_v4SPD16_eabi.lib : boot_cortex_m.c.obj (.stack)
+                  20013f04    000000fc     --HOLE--
+
+__llvm_prf_cnts 
+*          0    20000000    00000000     UNINITIALIZED
+
+.args      0    00000538    00000008     
+                  00000538    00000008     --HOLE-- [fill = 0]
+
+MODULE SUMMARY
+
+       Module                       code   ro data   rw data
+       ------                       ----   -------   -------
+    .\Assembly Files\
+       main.obj                     246    0         808    
+       eventhandler.obj             430    0         0      
+       init.obj                     306    0         0      
+       utility.obj                  78     0         0      
+    +--+----------------------------+------+---------+---------+
+       Total:                       1060   0         808    
+                                                            
+    C:\ti\ccs1250\ccs\tools\compiler\ti-cgt-arm_20.2.7.LTS\lib\rtsv7M4_T_le_v4SPD16_eabi.lib
+       memcpy_t2.asm.obj            156    0         0      
+       copy_decompress_lzss.c.obj   104    0         0      
+       copy_decompress_none.c.obj   14     0         0      
+    +--+----------------------------+------+---------+---------+
+       Total:                       274    0         0      
+                                                            
+       Stack:                       0      0         256    
+       Linker Generated:            0      47        0      
+    +--+----------------------------+------+---------+---------+
+       Grand Total:                 1334   47        1064   
+
+
+LINKER GENERATED COPY TABLES
+
+__TI_cinit_table @ 00000568 records: 1, size/record: 8, table size: 8
+	.data: load addr=00000540, load size=0000001f bytes, run addr=20000000, run size=00000328 bytes, compression=lzss
+
+
+LINKER GENERATED HANDLER TABLE
+
+__TI_handler_table @ 00000560 records: 2, size/record: 4, table size: 8
+	index: 0, handler: __TI_decompress_lzss
+	index: 1, handler: __TI_decompress_none
+
+
+GLOBAL SYMBOLS: SORTED ALPHABETICALLY BY Name 
+
+address   name                    
+-------   ----                    
+00000001  EnqueueEvent            
+0000005b  GPT0EventHandler        
+000001e1  InitClocks              
+00000223  InitGPIO                
+00000291  InitGPT0                
+000001af  InitPower               
+00000511  InstallGPT0Handler      
+000004db  MoveVecTable            
+000002e1  ResetISR                
+2000024f  TopOfStack              
+20000250  VecTable                
+20014000  __STACK_END             
+00000100  __STACK_SIZE            
+20014000  __STACK_TOP             
+00000568  __TI_CINIT_Base         
+00000570  __TI_CINIT_Limit        
+00000560  __TI_Handler_Table_Base 
+00000568  __TI_Handler_Table_Limit
+00000473  __TI_decompress_lzss    
+00000529  __TI_decompress_none    
+ffffffff  __TI_pprof_out_hndl     
+ffffffff  __TI_prof_data_size     
+ffffffff  __TI_prof_data_start    
+00000000  __TI_static_base__      
+000003d7  __aeabi_memcpy          
+000003d7  __aeabi_memcpy4         
+000003d7  __aeabi_memcpy8         
+ffffffff  __binit__               
+00000538  __c_args__              
+20013f00  __stack                 
+20000000  __start___llvm_prf_cnts 
+20000000  __stop___llvm_prf_cnts  
+20000028  bIndex                  
+ffffffff  binit                   
+2000002c  buffer                  
+20000010  dbnceCntr0              
+20000014  dbnceCntr1              
+20000018  dbnceCntr2              
+2000001c  dbnceCntr3              
+20000024  dbnceFlag               
+20000020  keyValue                
+000003d7  memcpy                  
+20000000  prev0                   
+20000004  prev1                   
+20000008  prev2                   
+2000000c  prev3                   
+
+
+GLOBAL SYMBOLS: SORTED BY Symbol Address 
+
+address   name                    
+-------   ----                    
+00000000  __TI_static_base__      
+00000001  EnqueueEvent            
+0000005b  GPT0EventHandler        
+00000100  __STACK_SIZE            
+000001af  InitPower               
+000001e1  InitClocks              
+00000223  InitGPIO                
+00000291  InitGPT0                
+000002e1  ResetISR                
+000003d7  __aeabi_memcpy          
+000003d7  __aeabi_memcpy4         
+000003d7  __aeabi_memcpy8         
+000003d7  memcpy                  
+00000473  __TI_decompress_lzss    
+000004db  MoveVecTable            
+00000511  InstallGPT0Handler      
+00000529  __TI_decompress_none    
+00000538  __c_args__              
+00000560  __TI_Handler_Table_Base 
+00000568  __TI_CINIT_Base         
+00000568  __TI_Handler_Table_Limit
+00000570  __TI_CINIT_Limit        
+20000000  __start___llvm_prf_cnts 
+20000000  __stop___llvm_prf_cnts  
+20000000  prev0                   
+20000004  prev1                   
+20000008  prev2                   
+2000000c  prev3                   
+20000010  dbnceCntr0              
+20000014  dbnceCntr1              
+20000018  dbnceCntr2              
+2000001c  dbnceCntr3              
+20000020  keyValue                
+20000024  dbnceFlag               
+20000028  bIndex                  
+2000002c  buffer                  
+2000024f  TopOfStack              
+20000250  VecTable                
+20013f00  __stack                 
+20014000  __STACK_END             
+20014000  __STACK_TOP             
+ffffffff  __TI_pprof_out_hndl     
+ffffffff  __TI_prof_data_size     
+ffffffff  __TI_prof_data_start    
+ffffffff  __binit__               
+ffffffff  binit                   
+
+[46 symbols]
