@@ -1,0 +1,58 @@
+Name,Description,Digikey Link,Digikey Part #,Quantity
+18087,DUAL BAND ANTENNA - U.FL (2.4GHZ,https://www.digikey.com/en/products/detail/sparkfun-electronics/18087/14313955,1568-18087-ND,1
+ANT-2.4-FPC-LH100M4,ANT 2.4 FPC 45X7 100 CBL MHF4,https://www.digikey.com/en/products/detail/te-connectivity-linx/ANT-2-4-FPC-LH100M4/16570601,343-ANT-2.4-FPC-LH100M4-ND,1
+CONMHF4-SMD-G-T,CONN MHF4 JACK STR SMD,https://www.digikey.com/en/products/detail/te-connectivity-linx/CONMHF4-SMD-G-T/15293390,343-CONMHF4-SMD-G-TCT-ND,1
+BK-18650-PC6,Battery Holder _Open_ 18650 3 Cell PC Pin,https://www.digikey.com/en/products/detail/mpd-memory-protection-devices/BK-18650-PC6/2330514?msockid=0c917f7f616a694d30ac6b5360ee6816,BK-18650-PC6-ND,2
+TLN6158M010R0055,"Tantalum Capacitor, Polarized, Tantalum (dry/solid), 10V, 20% +Tol, 20% -Tol, 1500uF, Surface Mount, 5831",https://www.digikey.com/en/products/detail/kyocera-avx/TLN6158M010R0055/2077257?s=N4IgTCBcDaICoBkByA2AjAVgBwFkAMaeASnnhhiALoC%2BQA,478-5634-1-ND,2
+565-1700-ND,CAP ALUM 1500UF 20% 35V RADIAL,https://www.digikey.com/en/products/detail/chemi-con/EKZE350ELL152MK35S/756216,565-1700-ND,2
+NORMAL CERAMIC SMD CAPACITORS,0805 Packages,,,
+GRM0335C1H1R3WA01D,"1.3 pF ±0.05pF 50V Ceramic Capacitor C0G, NP0 0201 (0603 Metric)",https://www.digikey.com/en/products/detail/murata-electronics/GRM0335C1H1R3WA01D/11618861,490-GRM0335C1H1R3WA01DCT-ND,at least 2 but I would argue that ordering 10 is not that much more expensive and might give me more luck in getting a closer capactor value with the error
+MATCHING NETWORK CAPACITORS,"0201 Packages, C0G or NP0 for RF signal fidelity",,,
+GJM1555C1H110FB01D,"11 pF ±1% 50V Ceramic Capacitor C0G, NP0 0402 (1005 Metric)",https://www.digikey.com/en/products/detail/murata-electronics/GJM1555C1H110FB01D/13401920,490-GJM1555C1H110FB01DCT-ND,2
+GJM1555C1H330FB01D,"33 pF ±1% 50V Ceramic Capacitor C0G, NP0 0402 (1005 Metric)",https://www.digikey.com/en/products/detail/murata-electronics/GJM1555C1H330FB01D/7363121,490-16377-1-ND,2
+B32022A3333M000,"Film Capacitor, Polypropylene, 1500V, 20% +Tol, 20% -Tol, 0.033uF, Through Hole Mount",https://www.digikey.com/en/products/detail/epcos-tdk-electronics/B32022A3333M000/1648112?s=N4IgTCBcDaIEIGYwAYxgIIKwgss-IAugL5A,495-3795-ND,1
+6PSS50,0.05 µF Film Capacitor 200V 600V Polyester Radial,https://www.digikey.com/en/products/detail/cornell-dubilier-knowles/6PSS50/6142250,6PSS50-ND,1
+16SVPF270M,Conductive Polymer Aluminum Solid Capacitors (OS-CON) 270uF ±20% 16V RADIAL SMT 8x6.9mm,https://www.digikey.com/en/products/detail/panasonic-electronic-components/16SVPF270M/4204812?s=N4IgTCBcDaIIwDYDKA1ACgMTAdgAwFkQBdAXyA,P16480CT-ND,1
+TDK EPCOS Film Capacitor,"Film Capacitor, Polypropylene, 630V, 20% +Tol, 20% -Tol, 0.47uF, Through Hole Mount",https://www.digikey.com/en/products/detail/epcos-tdk-electronics/B32922C3474M000/778984?s=N4IgTCBcDaIEIGYwE4xgMIICwHYsFkAGYkAXQF8g,495-2322-ND,2
+STPS2L25U,"Low Drop Power Schottky Rectifier, 2 A, 25 V, 2-Pin SMD (SMB), RoHS, Tape and Reel",https://www.digikey.com/en/products/detail/stmicroelectronics/STPS2L25U/1039649?msockid=0c917f7f616a694d30ac6b5360ee6816,497-5573-1-ND,3
+BAT54HT1G,"Schottky Barrier Diode, 2-Pin SOD-323, Pb-Free, Tape and Reel",https://www.digikey.com/en/products/detail/onsemi/BAT54HT1G/918315?msockid=0c917f7f616a694d30ac6b5360ee6816,BAT54HT1GOSCT-ND,2
+31.8225,Fuse holder but wiht a cap smd model,https://www.digikey.com/en/products/detail/schurter-inc/0031-8225/4430797,486-1723-1-ND,1
+061702.5MXP,5x20mm 2.5 amp fuse,https://www.digikey.com/en/products/detail/littelfuse-inc/061702-5MXP/5233765,061702.5MXP-ND,10 just in case
+BLM18HE152SN1D,"Chip Ferrite Bead, 0603, 1500Ω @ 100MHz, 0.5Ω, 25%, 500mA",https://www.digikey.com/en/products/detail/murata-electronics/BLM18HE152SN1D/1948321?msockid=0c917f7f616a694d30ac6b5360ee6816,490-5216-1-ND,1
+BLM18PG600SN1D,"Chip Ferrite Bead, 0603, 60Ω @ 100MHz, 0.1Ω, , 1A",https://www.digikey.com/en/products/detail/murata-electronics/BLM18PG600SN1D/584247?msockid=0c917f7f616a694d30ac6b5360ee6816,490-1036-1-ND,1
+FTSH-105-01-F-DV-K-P-TR,CONN HEADER SMD 10POS 1.27MM,https://www.digikey.com/en/products/detail/samtec-inc/FTSH-105-01-F-DV-K-P-TR/2649977?msockid=0c917f7f616a694d30ac6b5360ee6816,SAM13159CT-ND,1
+B14B-PASK(LF)(SN),CONN HEADER VERT 14POS 2MM,https://www.digikey.com/en/products/detail/jst-sales-america-inc/B14B-PASK-1/926750?msockid=0c917f7f616a694d30ac6b5360ee6816,455-B14B-PASK-1-ND,1
+DM3CS-SF,CONN MICRO SD CARD HINGED TYPE,https://www.digikey.com/en/products/detail/hirose-electric-co-ltd/DM3CS-SF/2602739?msockid=0c917f7f616a694d30ac6b5360ee6816,HR1972CT-ND,1
+SMD Jumpers,0201 0 ohm resistors ,,,at least 4 but more (10) would be nice becuase I might be switching jumpers a bit
+MLZ2012M150WT000,Shielded Multilayer Inductor 15uH ±20% 250mA 1235mΩ SMD 0805,https://www.digikey.com/en/products/detail/tdk-corporation/MLZ2012M150WT000/2465154?msockid=0c917f7f616a694d30ac6b5360ee6816,445-6397-1-ND,3
+MLZ2012N6R8LT000,Shielded Multilayer Inductor 6.8uH ±20% 550mA 325mΩ SMD 0805,https://www.digikey.com/en/products/detail/tdk-corporation/MLZ2012N6R8LT000/2523499?msockid=0c917f7f616a694d30ac6b5360ee6816,445-6761-1-ND,1
+MLG0603P3N3BT000,3.3 nH Unshielded Multilayer Inductor 450 mA 200mOhm Max 0201 (0603 Metric),https://www.digikey.com/en/products/detail/tdk-corporation/MLG0603P3N3BT000/4742098,445-MLG0603P3N3BT000CT-ND,at least 2 but I would argue that ordering 10 is not that much more expensive and might give me more luck in getting a closer inductor value with the error
+MATCHING NETWORK INDUCTORS,0201 Package,,,
+150141GS73100,Green LEDs,https://www.digikey.com/en/products/detail/w%C3%BCrth-elektronik/150141GS73100/4489957?msockid=0c917f7f616a694d30ac6b5360ee6816,732-4997-1-ND,6
+61000418321,"WR-PHD Pin Header, SMT, Vertical, pitch 2.54mm, 1 Row, 4P",https://www.digikey.com/en/products/detail/w%C3%BCrth-elektronik/61000418221/4846814,732-5365-5-ND,1
+CMA-4544PF-W,CMA Series 9.7 mm Electret Condenser Omni-Directional Pin Mount 3 V Microphone,https://www.digikey.com/en/products/detail/same-sky-formerly-cui-devices/CMA-4544PF-W/1869981?msockid=0c917f7f616a694d30ac6b5360ee6816,102-1721-ND,1
+9901,MACHINE SCREW PAN PHILLIPS 4-40,https://www.digikey.com/en/products/detail/keystone-electronics/9901/317322?msockid=0c917f7f616a694d30ac6b5360ee6816,36-9901-ND,6
+3 Pin Potentiometers,,,,2
+GENERAL RESISTORS,0805 Packages,,,
+3-2213818-2,Tactile Switches 6X6 ILL TACT THT 160GF HI COLD WHITE,https://www.digikey.com/en/products/detail/te-connectivity-alcoswitch-switches/FSMIJ62BW04/7042486?s=N4IgTCBcDaIMwFoxgIxwBwvUkBdAvkA,FSMIJ62BW04-ND,16
+ASE04508MR-LW150-R,SPEAKER 8OHM 3W TOP PORT 82DB,https://www.digikey.com/en/products/detail/pui-audio-inc/ASE04508MR-LW150-R/4700908?msockid=0c917f7f616a694d30ac6b5360ee6816,668-1433-ND,1
+EG1218,"Slide Switch, SPDT, 500 V, -20 to 70 degC, 3-Pin THD, RoHS, Bulk",https://www.digikey.com/en/products/detail/e-switch/EG1218/101726,EG1903-ND,3
+TL3342F160QG,"Tactile Switch, SPST-NO, 50 mA, 12 V, 4-Pin SMD, RoHS, Tape and Reel",https://www.digikey.com/en/products/detail/e-switch/TL3342F160QG-TR/379003?s=N4IgTCBcDaICoBkDMSAsYBiBGAbABgEUBxEAXQF8g,EG2531CT-ND,1
+ST-3-24,Split Bobbin Low Power Transformer,,,1
+5003,"Test Point, Orange, Height 4.6 mm, Tail Length 3 mm, 1-Pin THD, RoHS",https://www.digikey.com/en/products/detail/keystone-electronics/5003/362668,36-5003-ND,11
+CC2652R1FRGZR,RF IC'S + MODULES,,,1
+HBS502-HF,Bridge Rectifier Package,https://www.digikey.com/en/products/detail/comchip-technology/HBS502-HF/16740309?s=N4IgTCBcDaIBICEDKBWADGAtHAYiAugL5A,641-HBS502-HFTR-ND,1
+LM1085IS-ADJ,"3A Low Dropout Positive Regulators, 3-pin TO-263",https://www.digikey.com/en/products/detail/texas-instruments/LM1085IS-ADJ/5055938,LM1085IS-ADJ-ND,4
+L5970AD,"Up to 1 A step down switching regulator, 8-Pin SO",https://www.digikey.com/en/products/detail/stmicroelectronics/L5970AD/2035011,497-14764-5-ND,3
+STM704M6F,No Description Available,https://www.digikey.com/en/products/detail/stmicroelectronics/STM704M6F/700241?s=N4IgTCBcDaIMoBUCyB2ADAFiQNgGIgF0BfIA,497-3830-1-ND,1
+STM6321MWY6F,No Description Available,https://www.digikey.com/en/products/detail/stmicroelectronics/STM6321MWY6F/954063?s=N4IgTCBcDaIMoBUCyA2AzGAjEg6gTRQDEQBdAXyA,497-STM6321MWY6FCT-ND,1
+NC7SZ08M5X,"TinyLogic(R) UHS 2-Input AND Gate, 1.65 to 5.5 V, -40 to 85 degC, 5-Pin SOT23, RoHS, Tape and Reel",https://www.digikey.com/en/products/detail/onsemi/NC7SZ08M5X/673363,NC7SZ08M5XCT-ND,2
+74LCX125MTCX,"Bus Driver, LVC/LCX/Z Series, 4-Func, 1-Bit, True Output, CMOS, PDSO14",https://www.digikey.com/en/products/detail/onsemi/74LCX125MTCX/977121?s=N4IgTCBcDaIOwBYAyBhAGgRjAVgLIBV0QBdAXyA,74LCX125MTCXCT-ND,2
+MC74LCX245DTR2G,No Description Available,https://www.digikey.com/en/products/detail/onsemi/MC74LCX245DTR2G/1749000?s=N4IgTCBcDaILIGEDsAWAMggGmFBWAIgCoBKYA4iALoC%2BQA,MC74LCX245DTR2GOSCT-ND,1
+LMV358AIDR,IC OPAMP GP 2 CIRCUIT 8SOIC,https://www.digikey.com/en/products/detail/texas-instruments/LMV358AIDR/8037991?s=N4IgTCBcDaIDIFkBqBmArADgIIEkAiASiALoC%2BQA,296-47593-1-ND,1
+MPU-9250,"9-axis MotionTracking device, 2.4 to 3,6 V, -40 to 85 degC, 24-Pin QFN, RoHS, Tape and Reel",,,1
+LM386MX-1/NOPB,IC AMP CLASS AB MONO 325MW 8SOIC,https://www.digikey.com/en/products/detail/texas-instruments/LM386MX-1-NOPB/212680?s=N4IgTCBcDaIDIFkDMAOAbAgGgWgIwHoA5AeQAUAhEAXQF8g,LM386MX-1/NOPBCT-ND,2
+ABS07-166-32.768KHZ-T,Crystal 32.768kHz 10ppm 7pF -40C +85C,https://www.digikey.com/en/products/detail/abracon-llc/ABS07-166-32-768KHZ-T/8827199?s=N4IgTCBcDaIIICEDKAGA7AWgIwDYcYGYwA6NHADgGkAJALQwBUQBdAXyA,535-14514-1-ND,1
+ABM8-48.000MHZ-B2-T,Crystal 48MHz ±20ppm 18pF SMD-4 3.2mm x 2.5mm,https://www.digikey.com/en/products/detail/abracon-llc/ABM8-48-000MHZ-B2-T/675344,535-9149-1-ND,1
+120 - 8 V transformer,,,,1
+C14 style AC connector,,,,1
